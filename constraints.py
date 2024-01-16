@@ -18,17 +18,33 @@ def electric_energy_rule(m, h, t):
     The sum of used and exported energy must be equal to the sum of
     imported and generated energy for each household.
     """
-    pv_production = m.pv_production[t] * m.pv_installed_capacity[h]
-    consumption = m.el_load[h, t] + m.th_load[h, t]  # TODO: må endres for STES og varmepumpe
-    return pv_production + consumption == \
-        m.grid_import[h, t] - m.grid_export[h, t] + m.local_import[h, t] - m.local_export[h, t]
+    el_load = m.el_load[h, t] + \
+        m.electric_heating[h, t] + \
+        m.hp_air_to_floor_heating[h, t] / m.hp_air_to_floor_cop
+
+    return m.pv_production[h, t] + m.grid_el_import[h, t] == el_load + m.grid_export[h, t]
+
+
+#  TODO: alle reglene her må ordnes ordentlig !!
+
+def thermal_energy_rule(m, h, t):
+    heat_production = m.electric_heating[h, t] + m.hp_air_to_floor_heating[h, t]
+    return heat_production == m.th_load[h, t]
+
+
+def hp_air_to_floor_max_heating_rule(m, h, t):
+    return m.hp_air_to_floor_heating[h, t] <= m.hp_air_to_floor_max_heating[h]
+
+
+def pv_rule(m, h, t):
+    return m.pv_production[t] * m.pv_installed_capacity[h] == m.pv_th_production[h, t] + m.pv_el_production[h, t]
 
 
 def peak_grid_volume_rule(m, h, t):
     """
-    peak_load[h] tracks the maximum usage of
+    peak_grid_volume[h] tracks the maximum usage of the grid
     """
-    return m.grid_import[h, t] + m.grid_export[h, t] <= m.peak_grid_volume[h]
+    return m.grid_el_import[h, t] + m.grid_th_import[h, t] + m.grid_export[h, t] <= m.peak_grid_volume[h]
 
 
 def max_pv_capacity_rule(m, h):
@@ -43,15 +59,28 @@ def local_market_rule(m, t):
     return sum(m.local_import[h, t] - m.local_export[h, t] for h in m.h) == 0
 
 
-def stes_energy_balance_rule(m, t):
-    pass
+def stes_max_charging_rule(m, t):
+    return m.stes_grid_charge[t] + m.stes_pv_charge[t] <= m.STES_max_charge
+
+
+def stes_discharging_rule(m, t):
+    return m.stes_discharge[t] <= m.STES_max_discharge
+
+
+def stes_max_soc_rule(m, t):
+    return m.stes_soc[t] <= m.STES_capacity
+
+
+def stes_soc_evolution_rule(m, t):
+    return m.stes_soc[t] == m.stes_soc[t-1] + \
+           (m.stes_grid_charge[t] + m.stes_pv_charge) * m.eta_charge - m.stes_discharge[t] / m.eta_discharge
 
 
 def lec_constraints(m):
     m.electric_energy_constraint = pyo.Constraint(m.h_t, rule=electric_energy_rule)
     m.peak_load_constraint = pyo.Constraint(m.h_t, rule=peak_grid_volume_rule)
     m.max_pv_capacity_constraint = pyo.Constraint(m.h, rule=max_pv_capacity_rule)
-    m.local_market_rule = pyo.Constraint(m.t, rule=local_market_rule)
+    # m.local_market_rule = pyo.Constraint(m.t, rule=local_market_rule)
 
 
 # =======================
@@ -59,7 +88,7 @@ def lec_constraints(m):
 # =======================
 
 def grid_power_volume_rule(m_dso, t, sign):
-    net_import = sum(m_dso.grid_import[h, t] - m_dso.grid_export[h, t] for h in m_dso.h)
+    net_import = sum(m_dso.grid_el_import[h, t] - m_dso.grid_export[h, t] for h in m_dso.h)
     net_import = net_import * sign
 
     return m_dso.grid_power_volume[t] >= net_import

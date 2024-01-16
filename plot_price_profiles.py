@@ -24,6 +24,15 @@ def plot_price_profiles(df, scenarios, periods):
     plt.show()
 
 
+def plot_PV_price():
+    installed_cap = [3.3, 4.4, 5.5, 7.7]
+    price = [56900, 74500, 96900, 135220]
+    plt.figure()
+    plt.plot(installed_cap, price)
+    plt.title('Solcellespesialisten, priser')
+    plt.show()
+
+
 if __name__ == '__main__':
 
     price_profiles = pd.read_csv('Framtidspriser/filtrerte_priser.csv')
@@ -37,3 +46,5 @@ if __name__ == '__main__':
     periods = price_profiles['Period'].unique()
 
     plot_price_profiles(price_profiles, scenarios[3:10], periods[3:4])
+
+    plot_PV_price()

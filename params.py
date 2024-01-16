@@ -21,14 +21,9 @@ def array_init_wrapper(array):
     return init_rule
 
 
-"""
-PARAMETERS
-Spot price: Cost of 
-Load: Costumer load (per household)
-PV production: PV production (per household)
-"""
-# Antar forbruk ikke blir slått sammen med produksjon, hvis ikke kan den også ta negative verdier
-
+#
+#
+#
 
 def set_prosumer_params(m, prosumer_params):
     """
@@ -89,8 +84,11 @@ def set_hp_params(m, hp_params):
     :param hp_params:
     :return:
     """
-    # m.hp_cop = pyo.Param(initialize=init_cop, within=pyo.NonNegativeReals)
-
+    # TODO: Potentially change air->floor COP based on outside temperature
+    m.hp_air_to_floor_cop = pyo.Param(initialize=hp_params['air_to_floor_cop'], within=pyo.NonNegativeReals)
+    m.hp_air_to_floor_max_heating = pyo.Param(m.h,
+                                              initialize=hp_params['air_to_floor_max_heating'],
+                                              within=pyo.NonNegativeReals)
 
 def set_STES_params(m, stes_params):
     """
@@ -126,9 +124,9 @@ def set_dso_params(m_dso, dso_params, net_use_params):
     m_dso.transmission_loss = pyo.Param(initialize=dso_params['transmission_loss'], within=pyo.NonNegativeReals)
 
     # Per house hourly grid import
-    m_dso.grid_import = pyo.Param(m_dso.h_t,
-                                  initialize=net_use_params['grid_import'],
-                                  within=pyo.NonNegativeReals)
+    m_dso.grid_el_import = pyo.Param(m_dso.h_t,
+                                     initialize=net_use_params['grid_el_import'],
+                                     within=pyo.NonNegativeReals)
     # Per house hourly grid export
     m_dso.grid_export = pyo.Param(m_dso.h_t,
                                   initialize=net_use_params['grid_export'],

@@ -53,6 +53,7 @@ class ModelBuilder:
 
         self.prosumer_params = self._get_prosumer_params(self.city, self.num_houses)
         self.pv_params = self._get_pv_params()
+        self.stes_params = self._get_stes_params()
         self.power_market_params = self._get_power_market_params()
         self.dso_params = self._get_dso_params()
 
@@ -63,7 +64,7 @@ class ModelBuilder:
         return pd.DataFrame(load_profiles, index=self.hours)
 
     def _get_prosumer_params(self, city, num_houses):
-        # TODO: Divide load among thermal and electric in a better way
+        # TODO: Divide load among thermal and electric by using PROFet
         load_profile = self._get_load_profiles(city, num_houses)
         return {'el_load': load_profile * 0.6,
                 'thermal_load': load_profile * 0.4}
@@ -76,6 +77,22 @@ class ModelBuilder:
         return {'pv_production': PV_GEN_PROFILE,
                 'pv_invest_cost': 300,   # TODO: Finn investeringskostnad
                 'max_pv_capacity': 15}   # TODO: Finn fornuftig grense ?
+
+    def _get_stes_params(self):
+        """
+
+        :return:
+        """
+        return {'investment_cost': 0,
+                'cap_investment_cost': 0,
+                'installed_capacity': 0,
+                'init_SOC': 0,
+                'max_charge': 0,
+                'max_discharge': 0,
+                'eta_charge': 0,
+                'eta_discharge': 0,
+                'heat_loss': 0
+        }
 
     def _get_power_market_params(self):
         # TODO: Legg til ordentlige priser
@@ -120,7 +137,8 @@ class ModelBuilder:
         set_prosumer_params(m, self.prosumer_params)
         set_pv_params(m, self.pv_params)
         set_power_market_params(m, self.power_market_params)
-        set_tariff_params(m, tariff_params)
+        set_STES_params(m, self.stes_params)
+        # set_tariff_params(m, tariff_params)
 
         # Variables
         pv_vars(m)
@@ -140,7 +158,7 @@ class ModelBuilder:
         Takes in net usage for each household, and calculates losses and investment cost.
         Results in tariffs that cover transmission losses and investment cost.
         :param net_use_params: a dict containing net import and export data from a previous solve
-         - 'grid_import' = (h,t) indexed grid power import per house, per hour [kWh]
+         - 'grid_el_import' = (h,t) indexed grid power import per house, per hour [kWh]
          - 'grid_export' = (h,t) indexed grid power export per house, per hour [kWh]
         :return:
         """
@@ -167,28 +185,29 @@ class ModelBuilder:
 def individual_scenario():
     builder = ModelBuilder(5)
 
-    vnt, cnt = 0, 0
+    # vnt, cnt = 0, 0
 
     opt = pyo.SolverFactory('gurobi_direct')
+    lec_model = builder.create_lec_model()
 
-    for i in range(50):
-        tariff_params = {'vnt': vnt, 'cnt': cnt}
-        lec_model = builder.create_lec_model(tariff_params)
-        opt.solve(lec_model, tee=True)
+    # for i in range(50):
+    #    tariff_params = {'vnt': vnt, 'cnt': cnt}
+    #    lec_model = builder.create_lec_model(tariff_params)
+    #    opt.solve(lec_model, tee=True)
 
         # Extract power grid import and export
-        net_use_params = {
-            'grid_import': lec_model.grid_import.extract_values(),
-            'grid_export': lec_model.grid_export.extract_values()
-        }
+    #    net_use_params = {
+    #        'grid_el_import': lec_model.grid_el_import.extract_values(),
+    #        'grid_export': lec_model.grid_export.extract_values()
+    #    }
 
-        dso_model = builder.create_dso_model(net_use_params)
-        opt.solve(dso_model, tee=True)
+    #    dso_model = builder.create_dso_model(net_use_params)
+    #    opt.solve(dso_model, tee=True)
 
-        print(dso_model.grid_capacity_cost.value, dso_model.grid_loss_cost.value)
+    #    print(dso_model.grid_capacity_cost.value, dso_model.grid_loss_cost.value)
 
-    else:
-        print("Loop did not converge!")
+    #else:
+    #    print("Loop did not converge!")
 
 def stes_scenario():
     pass

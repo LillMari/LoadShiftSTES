@@ -36,8 +36,7 @@ def grid_vars(m):
     m.local_import = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh/h]
     m.local_export = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh/h]
 
-    m.lm_price = pyo.Var(m.t, within=pyo.NonNegativeReals)  # Local market prices [EUR/kWh]
-    m.peak_grid_volume = pyo.Var(m.h, within=pyo.NonNegativeReals)  # Highest grid value, either import or export [kWh/h]
+    m.peak_grid_volume = pyo.Var(within=pyo.NonNegativeReals)  # [kWh/h] max netto grid volume, either import or export
 
 
 def stes_vars(m):
@@ -45,16 +44,19 @@ def stes_vars(m):
     :param m:
     :return:
     """
-    pass
-    # m.stes_soc = pyo.Var(m.t, within=pyo.NonNegativeReals)
-    # m.stes_pv_charge = pyo.Var(m.t, within=pyo.NonNegativeReals)
-    # m.stes_grid_charge = pyo.Var(m.t, within=pyo.NonNegativeReals)
-    # m.stes_discharge = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.stes_soc = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.stes_pv_charge = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.stes_grid_charge = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.stes_discharge = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
 
-def hp_vars(m):
-    # Kan bakes inn i andre variabler?
-    pass
+def heating_vars(m):
+    # A 1:1 conversion from electric energy to heat. No upper bound, but least efficient method
+    m.electric_heating = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh] of heat energy
+
+    # A more efficient way of heating houses, still using electricity.
+    # Upper bounded by hp_air_to_floor_max_heating
+    m.hp_air_to_floor_heating = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh] of heat energy
 
 
 def dso_vars(m_dso):
