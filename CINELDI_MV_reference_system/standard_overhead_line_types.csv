@@ -1,0 +1,4 @@
+﻿type;R_ohm_per_km;X_ohm_per_km;Cd_nF_per_km;Imax_A;cost_NOK_per_km
+40-AL1/7-ST1A (FeAl nr. 25 6/1);0.723;0.394;9.226;266;605173
+80-AL1/13-ST1A (FeAl nr. 50 6/1);0.36;0.373;9.793;416;697375
+111-AL1/19-ST1A (FeAl nr. 70 6/1) ;0.258;0.362;10.1;517;759408
