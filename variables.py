@@ -48,6 +48,7 @@ def stes_vars(m):
     m.stes_pv_charge = pyo.Var(m.t, within=pyo.NonNegativeReals)
     m.stes_grid_charge = pyo.Var(m.t, within=pyo.NonNegativeReals)
     m.stes_discharge = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.stes_capacity = pyo.Var(within=pyo.NonNegativeReals)
 
 
 def heating_vars(m):

@@ -25,18 +25,18 @@ def array_init_wrapper(array):
 #
 #
 
-def set_prosumer_params(m, prosumer_params):
+def set_load_params(m, load_params):
     """
 
     :param m: model
-    :param prosumer_params:
+    :param load_params:
     :return:
     """
     m.el_load = pyo.Param(m.h_t,
-                          initialize=df_init_wrapper(prosumer_params['el_load']),
+                          initialize=df_init_wrapper(load_params['el_load']),
                           within=pyo.NonNegativeReals)
     m.th_load = pyo.Param(m.h_t,
-                          initialize=df_init_wrapper(prosumer_params['thermal_load']),
+                          initialize=df_init_wrapper(load_params['thermal_load']),
                           within=pyo.NonNegativeReals)
 
 

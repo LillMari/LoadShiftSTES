@@ -34,11 +34,11 @@ predict = OAuth2Session(token=token)
 payload = {
     "StartDate": "1990-01-01",              # Initial date (influences weekday/weekend. N.B. In Shops and Culture_Sport, Saturday has a different profile than Sunday)
     "Areas": {                              # Spesification of areas for building categories and efficiency levels
-        "Off": {                            # building category office, add sections for multiple categories. Available categories are ['Hou', 'Apt', 'Off', 'Shp', 'Htl', 'Kdg', 'Sch', 'Uni', 'CuS', 'Nsh', 'Hos', 'Other']
-            "Reg": 100000,                  # Category regular. 'Regular' means average standard of buildings in the stock
-            "Eff-E": 100000,                # Category Efficient Existing. 'Efficient' means at about TEK10 standard, representing an ambitious yet realistic target for energy efficient renovation
-            "Eff-N": 50000,                 # Category Efficient New. 'Efficient' means at about TEK10 standard. Gives same results as Eff-E
-            "Vef": 50000                    # Category Very Efficient.'Very efficient' means at about passive house standard
+        "Hou": {                            # building category office, add sections for multiple categories. Available categories are ['Hou', 'Apt', 'Off', 'Shp', 'Htl', 'Kdg', 'Sch', 'Uni', 'CuS', 'Nsh', 'Hos', 'Other']
+            "Reg": 15,                  # Category regular. 'Regular' means average standard of buildings in the stock
+            "Eff-E": 0,                # Category Efficient Existing. 'Efficient' means at about TEK10 standard, representing an ambitious yet realistic target for energy efficient renovation
+            "Eff-N": 0,                 # Category Efficient New. 'Efficient' means at about TEK10 standard. Gives same results as Eff-E
+            "Vef": 0                    # Category Very Efficient.'Very efficient' means at about passive house standard
         },
         # "Other": {                          # Category other represents the composition of the total norwegian building stock
         #     "Reg": 1000000,

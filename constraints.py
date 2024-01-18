@@ -18,14 +18,11 @@ def electric_energy_rule(m, h, t):
     The sum of used and exported energy must be equal to the sum of
     imported and generated energy for each household.
     """
-    el_load = m.el_load[h, t] + \
-        m.electric_heating[h, t] + \
+    el_load = m.el_load[h, t] + m.electric_heating[h, t] + \
         m.hp_air_to_floor_heating[h, t] / m.hp_air_to_floor_cop
 
-    return m.pv_production[h, t] + m.grid_el_import[h, t] == el_load + m.grid_export[h, t]
+    return m.pv_production[t] * m.pv_installed_capacity[h] + m.grid_import[h, t] == el_load + m.grid_export[h, t]
 
-
-#  TODO: alle reglene her må ordnes ordentlig !!
 
 def thermal_energy_rule(m, h, t):
     heat_production = m.electric_heating[h, t] + m.hp_air_to_floor_heating[h, t]
@@ -40,11 +37,11 @@ def pv_rule(m, h, t):
     return m.pv_production[t] * m.pv_installed_capacity[h] == m.pv_th_production[h, t] + m.pv_el_production[h, t]
 
 
-def peak_grid_volume_rule(m, h, t):
+def peak_grid_volume_rule(m, t, sign):
     """
-    peak_grid_volume[h] tracks the maximum usage of the grid
+    peak_grid_volume tracks the maximum usage of the grid
     """
-    return m.grid_el_import[h, t] + m.grid_th_import[h, t] + m.grid_export[h, t] <= m.peak_grid_volume[h]
+    return sign * sum(m.grid_import[h, t] - m.grid_export[h, t] for h in m.h) <= m.peak_grid_volume
 
 
 def max_pv_capacity_rule(m, h):
@@ -72,15 +69,15 @@ def stes_max_soc_rule(m, t):
 
 
 def stes_soc_evolution_rule(m, t):
-    return m.stes_soc[t] == m.stes_soc[t-1] + \
-           (m.stes_grid_charge[t] + m.stes_pv_charge) * m.eta_charge - m.stes_discharge[t] / m.eta_discharge
+    return m.stes_soc[t] == m.stes_soc[t - 1] + \
+        (m.stes_grid_charge[t] + m.stes_pv_charge) * m.eta_charge - m.stes_discharge[t] / m.eta_discharge
 
 
 def lec_constraints(m):
     m.electric_energy_constraint = pyo.Constraint(m.h_t, rule=electric_energy_rule)
-    m.peak_load_constraint = pyo.Constraint(m.h_t, rule=peak_grid_volume_rule)
+    m.peak_load_constraint = pyo.Constraint(m.t * m.sign, rule=peak_grid_volume_rule)
     m.max_pv_capacity_constraint = pyo.Constraint(m.h, rule=max_pv_capacity_rule)
-    # m.local_market_rule = pyo.Constraint(m.t, rule=local_market_rule)
+    m.local_market_rule = pyo.Constraint(m.t, rule=local_market_rule)
 
 
 # =======================
@@ -108,8 +105,7 @@ def grid_volume_cost_rule(m_dso):
 
 
 def dso_constraints(m_dso):
-    m_dso.sign_set = pyo.Set(initialize=[1, -1])
-    m_dso.power_volume_constraint = pyo.Constraint(m_dso.t * m_dso.sign_set, rule=grid_power_volume_rule)
+    m_dso.power_volume_constraint = pyo.Constraint(m_dso.t * m_dso.sign, rule=grid_power_volume_rule)
     m_dso.grid_capacity_constraint = pyo.Constraint(m_dso.t, rule=grid_capacity_rule)
 
     # Calculates derived variables
