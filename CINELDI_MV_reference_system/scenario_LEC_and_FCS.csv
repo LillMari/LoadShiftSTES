@@ -1,0 +1,8 @@
+﻿year_rel;bus_i;load_added_MW;label;power_factor
+1;78;2;FCS_highway;1
+2;89;0.88;LEC;0.95
+3;48;2;FCS_shopping_mall;1
+4;104;0.88;LEC;0.95
+5;65;0.88;LEC;0.95
+6;30;0.88;LEC;0.95
+8;38;0.88;LEC;0.95

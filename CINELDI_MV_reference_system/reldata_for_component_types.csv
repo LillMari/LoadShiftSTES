@@ -1,0 +1,6 @@
+﻿main_type;lambda_perm;lambda_temp;r_perm;r_temp
+Overhead line (1–22 kV);3.97;4.34;3;0.02
+Underground cable (1–22 kV);1.79;0.17;5;0.02
+Distribution transformers;0.54;0.16;4;0.02
+Circuit breakers (1–22 kV);0.14;0.29;;
+Disconnectors   (1–22 kV);0.12;0.04;;

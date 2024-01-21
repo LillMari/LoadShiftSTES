@@ -1,0 +1,5 @@
+﻿type;R_ohm_per_km;X_ohm_per_km;Cd_nF_per_km;Imax_A;cost_NOK_per_km_rural;cost_NOK_per_km_semi-urban;cost_NOK_per_km_urban
+TSLE 3x1x50 Al / 16;0.641;0.22;160;200;601 747;735 541;1018229
+TSLE 3x1x95 Al / 25;0.32;0.2;200;295;640 884;774 678;1057366
+TSLE 3x1x150 Al / 25;0.206;0.19;230;370;708 481;842 275;1124963
+TSLE 3x1X240 Al / 35;0.125;0.17;280;465;761 603;895 397;1178085
