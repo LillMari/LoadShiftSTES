@@ -20,7 +20,7 @@ def pv_vars(m):
     :param m:
     :return:
     """
-    m.pv_installed_capacity = pyo.Var(m.h, within=pyo.NonNegativeReals)
+    m.pv_installed_capacity = pyo.Var(m.h, within=pyo.NonNegativeReals, bounds=(0, m.max_pv_capacity))
 
 
 def grid_vars(m):
@@ -44,7 +44,7 @@ def stes_vars(m):
     :param m:
     :return:
     """
-    m.stes_capacity = pyo.Var(within=pyo.NonNegativeReals)
+    m.stes_capacity = pyo.Var(within=pyo.NonNegativeReals, bounds=(0, m.max_stes_capacity))
     m.stes_soc = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
     # Heating stes

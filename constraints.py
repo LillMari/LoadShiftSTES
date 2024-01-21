@@ -40,10 +40,6 @@ def peak_grid_volume_rule(m, t, sign):
     return sign * sum(m.grid_import[h, t] - m.grid_export[h, t] for h in m.h) <= m.peak_grid_volume
 
 
-def max_pv_capacity_rule(m, h):
-    return m.pv_installed_capacity[h] <= m.max_pv_capacity
-
-
 def pv_curtailment_rule(m, h, t):
     return
 
@@ -61,20 +57,20 @@ def stes_max_discharging_rule(m, t):
 
 
 def stes_max_soc_rule(m, t):
-    return m.stes_soc[t] <= m.STES_capacity
+    return m.stes_soc[t] <= m.stes_capacity
 
 
 def stes_soc_evolution_rule(m, t):
     if t > 0:
         last_hour = m.stes_soc[t - 1]
     else:
-        last_hour = m.stes_soc[m.t[-1]]
+        last_hour = m.stes_soc[m.t.at(-1)]
 
-    charge_factor = m.eta_charge
-    discharge_factor = (1 - 1 / m.stes_discharge_hp_cop) / m.eta_discharge
+    charge_factor = m.stes_charge_eta
+    discharge_factor = (1 - 1 / m.stes_discharge_hp_cop) / m.stes_discharge_eta
 
-    return m.stes_soc[t] == last_hour * m.heat_loss + \
-        sum(m.stes_charge_hp_qw[h, t] * charge_factor - m.stes_discharge_hp_qw[t] * discharge_factor for h in m.h)
+    return m.stes_soc[t] == last_hour * m.heat_retainment + \
+        sum(m.stes_charge_hp_qw[h, t] * charge_factor - m.stes_discharge_hp_qw[h, t] * discharge_factor for h in m.h)
 
 
 def lec_constraints(m):
@@ -82,11 +78,9 @@ def lec_constraints(m):
     m.thermal_energy_constraint = pyo.Constraint(m.h_t, rule=thermal_energy_rule)
     m.house_hp_max_heating_constraint = pyo.Constraint(m.h_t, rule=house_hp_max_heating_rule)
 
-    m.peak_load_constraint = pyo.Constraint(m.t * m.sign, rule=peak_grid_volume_rule)
+    m.peak_grid_volume_constraint = pyo.Constraint(m.t * m.sign, rule=peak_grid_volume_rule)
 
-    m.local_market_rule = pyo.Constraint(m.t, rule=local_market_rule)
-
-    m.max_pv_capacity_constraint = pyo.Constraint(m.h, rule=max_pv_capacity_rule)
+    m.local_market_constraint = pyo.Constraint(m.t, rule=local_market_rule)
 
     # STES constraints
     m.stes_max_charging_constraint = pyo.Constraint(m.t, rule=stes_max_charging_rule)

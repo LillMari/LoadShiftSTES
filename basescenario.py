@@ -73,13 +73,10 @@ class ModelBuilder:
         self.load_params = self._get_load_params(self.city, self.num_houses)
         self.pv_params = self._get_pv_params()
         self.stes_params = self._get_stes_params()
-        self.stes_hp_params = self._get_stes_hp_params()
         self.house_hp_params = self._get_house_hp_params()
         self.power_market_params = self._get_power_market_params()
-        self.dso_params = self._get_dso_params()
 
     def _get_load_profiles(self, city, num_houses):
-        # TODO: mulig å ikke gjøre dobbelt opp for thermal og electric?
         all_ids = get_valid_household_ids(city)
         ids = self.rng.choice(all_ids, size=(num_houses,), replace=True)
 
@@ -113,42 +110,38 @@ class ModelBuilder:
         :return:
         """
         # TODO: finn verdier
-        return {'cop': 3, 'max_total_qw': 10}
+        return {'cop': 3,
+                'max_qw': 10  # [kWh/h]
+                }
 
     def _get_stes_params(self):
         """
         :return:
         """
         # TODO: finn greie parameterverdier
-        return {'investment_cost': annualize_cost(0),
-                'cap_investment_cost': annualize_cost(0),
-                'installed_capacity': 0,
-                'init_SOC': 0,
-                'eta_charge': 1,
-                'eta_discharge': 1,
-                'heat_loss': 1,
+        return {'investment_cost': annualize_cost(0),  # [EUR/year] cost of any STES
+                'cap_investment_cost': annualize_cost(0),  # [EUR/year/kWh] cost of STES capacity
+                'max_installed_capacity': 0,  # [kWh] of stored heat
+                # 'init_SOC': 0,
+                'heat_retainment': 0.85**(1/(6*30*24)),  # [1/h] # TODO: Value based on size
+
+                'charge_hp_investment_cost': 0,
+                'charge_eta': 1,
                 'charge_cop': 3,
-                'charge_max_qw': 1000,  # kWh/h
+                'charge_max_qw': 1000,  # kWh/h TODO: Base on investment?
+                'discharge_eta': 1,
                 'discharge_cop': 100,
-                'discharge_max_qw': 1000,  # kWh/h
-                'hp_investment_cost': 0
+                'discharge_max_qw': 1000,  # kWh/h TODO: Base on investment?
                 }
 
     def _get_power_market_params(self):
         # TODO: Legg til ordentlige priser
-        price = np.sin((np.arange(8760)/8760 + 0.2)*2*np.pi)*.5 + .55
+        price = (np.sin((np.arange(8760)/8760 + 0.2)*2*np.pi)*.5 + .55) / 10
 
         return {'power_market_price': pd.Series(data=price, index=self.hours),  # [EUR/kWh]
-                'tax': 16.69 * 1e-2,  # 2021 electricity tax [cents/kWh]
-                'NM': 1  # TODO
+                'tax': 16.69 * 1e-2,  # 2021 electricity tax [EUR/kWh]
+                'NM': 0  # Elvia sier 0 nettleie på solgt strøm, men du får ikke noe "negativ" nettleie.
                 }
-
-    def _get_dso_params(self):
-        return {
-            'existing_transmission_capacity': 100,  # kW TODO: Proper value
-            'grid_invest_cost': 10,  # [EUR/kWp] TODO: Proper value
-            'transmission_loss': 0.1  # TODO: Proper value
-        }
 
     def create_base_model(self):
         m = pyo.ConcreteModel()
@@ -226,10 +219,16 @@ class ModelBuilder:
 
 
 def lec_scenario():
+    global lec_model
+
     builder = ModelBuilder(5)
 
     opt = pyo.SolverFactory('gurobi_direct')
     lec_model = builder.create_lec_model(tariff_params={'cnt': 0, 'vnt': 0})
+    opt.solve(lec_model, tee=True)
+
+
+    lec_model.
 
 
 def main():

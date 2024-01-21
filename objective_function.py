@@ -6,11 +6,10 @@ Created on Thu Jan 09 2024
 """
 
 import pyomo.environ as pyo
-import pandas as pd
 
 
 def total_lec_cost_rule(m):
-    # PV investment cost
+    # PV investment cost (annualized)
     pv_investment_cost = m.pv_invest_cost * sum(m.pv_installed_capacity[h] for h in m.h)
 
     # Power market cost
@@ -21,7 +20,6 @@ def total_lec_cost_rule(m):
 
     # Grid charges
     grid_volume_cost = sum((m.grid_import[h, t] - m.NM * m.grid_export[h, t]) * m.vnt for h, t in m.h_t)
-
     grid_capacity_cost = m.peak_grid_volume * m.cnt
 
     # STES investment cost

@@ -94,16 +94,16 @@ def set_stes_params(m, stes_params):
     m.investment_cost = pyo.Param(initialize=stes_params['investment_cost'], within=pyo.NonNegativeReals)
     m.cap_investment_cost = pyo.Param(initialize=stes_params['cap_investment_cost'], within=pyo.NonNegativeReals)
 
-    m.STES_capacity = pyo.Param(initialize=stes_params['installed_capacity'], within=pyo.NonNegativeReals)
-    m.STES_initial_SOC = pyo.Param(initialize=stes_params['init_SOC'], within=pyo.NonNegativeReals)
+    m.max_stes_capacity = pyo.Param(initialize=stes_params['max_installed_capacity'], within=pyo.NonNegativeReals)
+    # m.stes_initial_soc = pyo.Param(initialize=stes_params['init_SOC'], within=pyo.NonNegativeReals)
 
-    m.eta_charge = pyo.Param(initialize=stes_params['eta_charge'], within=pyo.NonNegativeReals)
-    m.eta_discharge = pyo.Param(initialize=stes_params['eta_discharge'], within=pyo.NonNegativeReals)
-    m.heat_loss = pyo.Param(initialize=stes_params['heat_loss'], within=pyo.NonNegativeReals)
+    m.heat_retainment = pyo.Param(initialize=stes_params['heat_retainment'], within=pyo.NonNegativeReals)
 
+    m.stes_charge_eta = pyo.Param(initialize=stes_params['charge_eta'], within=pyo.NonNegativeReals)
     m.stes_charge_hp_cop = pyo.Param(initialize=stes_params['charge_cop'], within=pyo.NonNegativeReals)
-    m.stes_charge_hp_max_qw = pyo.Param(initialize=stes_params['max_charge_qw'], within=pyo.NonNegativeReals)
+    m.stes_charge_hp_max_qw = pyo.Param(initialize=stes_params['charge_max_qw'], within=pyo.NonNegativeReals)
 
+    m.stes_discharge_eta = pyo.Param(initialize=stes_params['discharge_eta'], within=pyo.NonNegativeReals)
     m.stes_discharge_hp_cop = pyo.Param(initialize=stes_params['discharge_cop'], within=pyo.NonNegativeReals)
     m.stes_discharge_hp_max_qw = pyo.Param(initialize=stes_params['discharge_max_qw'], within=pyo.NonNegativeReals)
 
