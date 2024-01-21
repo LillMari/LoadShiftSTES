@@ -15,26 +15,22 @@ import pandas as pd
 
 def electric_energy_rule(m, h, t):
     """
-    The sum of used and exported energy must be equal to the sum of
-    imported and generated energy for each household.
+    The electric demand is covered by the grid, the local market and by its own PV system
     """
-    el_load = m.el_load[h, t] + m.electric_heating[h, t] + \
-        m.hp_air_to_floor_heating[h, t] / m.hp_air_to_floor_cop
-
-    return m.pv_production[t] * m.pv_installed_capacity[h] + m.grid_import[h, t] == el_load + m.grid_export[h, t]
+    el_load = m.el_demand[h, t] + m.electric_heating[h, t] + \
+              m.house_hp_qw[h, t] / m.stes_charge_hp_cop + \
+              m.stes_charge_hp_qw[h, t] / m.stes_charge_hp_cop + \
+              m.stes_discharge_hp_qw[h, t] / m.stes_discharge_hp_cop
+    return el_load == m.grid_import[h, t] - m.grid_export[h, t] + m.local_import[h, t] - m.local_export[h, t] + \
+        m.pv_production[t] * m.pv_installed_capacity[h]
 
 
 def thermal_energy_rule(m, h, t):
-    heat_production = m.electric_heating[h, t] + m.hp_air_to_floor_heating[h, t]
-    return heat_production == m.th_load[h, t]
+    return m.electric_heating[h, t] + m.house_hp_qw[h, t] + m.stes_discharge_hp_qw[h, t] == m.th_demand[h, t]
 
 
-def hp_air_to_floor_max_heating_rule(m, h, t):
-    return m.hp_air_to_floor_heating[h, t] <= m.hp_air_to_floor_max_heating[h]
-
-
-def pv_rule(m, h, t):
-    return m.pv_production[t] * m.pv_installed_capacity[h] == m.pv_th_production[h, t] + m.pv_el_production[h, t]
+def house_hp_max_heating_rule(m, h, t):
+    return m.house_hp_qw[h, t] <= m.house_hp_max_qw
 
 
 def peak_grid_volume_rule(m, t, sign):
@@ -57,11 +53,11 @@ def local_market_rule(m, t):
 
 
 def stes_max_charging_rule(m, t):
-    return m.stes_grid_charge[t] + m.stes_pv_charge[t] <= m.STES_max_charge
+    return sum(m.stes_charge_hp_qw[h, t] for h in m.h) <= m.stes_charge_hp_max_qw
 
 
-def stes_discharging_rule(m, t):
-    return m.stes_discharge[t] <= m.STES_max_discharge
+def stes_max_discharging_rule(m, t):
+    return sum(m.stes_discharge_hp_qw[h, t] for h in m.h) <= m.stes_discharge_hp_max_qw
 
 
 def stes_max_soc_rule(m, t):
@@ -69,15 +65,34 @@ def stes_max_soc_rule(m, t):
 
 
 def stes_soc_evolution_rule(m, t):
-    return m.stes_soc[t] == m.stes_soc[t - 1] + \
-        (m.stes_grid_charge[t] + m.stes_pv_charge) * m.eta_charge - m.stes_discharge[t] / m.eta_discharge
+    if t > 0:
+        last_hour = m.stes_soc[t - 1]
+    else:
+        last_hour = m.stes_soc[m.t[-1]]
+
+    charge_factor = m.eta_charge
+    discharge_factor = (1 - 1 / m.stes_discharge_hp_cop) / m.eta_discharge
+
+    return m.stes_soc[t] == last_hour * m.heat_loss + \
+        sum(m.stes_charge_hp_qw[h, t] * charge_factor - m.stes_discharge_hp_qw[t] * discharge_factor for h in m.h)
 
 
 def lec_constraints(m):
     m.electric_energy_constraint = pyo.Constraint(m.h_t, rule=electric_energy_rule)
+    m.thermal_energy_constraint = pyo.Constraint(m.h_t, rule=thermal_energy_rule)
+    m.house_hp_max_heating_constraint = pyo.Constraint(m.h_t, rule=house_hp_max_heating_rule)
+
     m.peak_load_constraint = pyo.Constraint(m.t * m.sign, rule=peak_grid_volume_rule)
-    m.max_pv_capacity_constraint = pyo.Constraint(m.h, rule=max_pv_capacity_rule)
+
     m.local_market_rule = pyo.Constraint(m.t, rule=local_market_rule)
+
+    m.max_pv_capacity_constraint = pyo.Constraint(m.h, rule=max_pv_capacity_rule)
+
+    # STES constraints
+    m.stes_max_charging_constraint = pyo.Constraint(m.t, rule=stes_max_charging_rule)
+    m.stes_max_discharging_constraint = pyo.Constraint(m.t, rule=stes_max_discharging_rule)
+    m.stes_max_soc_constraint = pyo.Constraint(m.t, rule=stes_max_soc_rule)
+    m.stes_soc_evolution_constraint = pyo.Constraint(m.t, rule=stes_soc_evolution_rule)
 
 
 # =======================

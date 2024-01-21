@@ -44,11 +44,14 @@ def stes_vars(m):
     :param m:
     :return:
     """
-    m.stes_soc = pyo.Var(m.t, within=pyo.NonNegativeReals)
-    m.stes_pv_charge = pyo.Var(m.t, within=pyo.NonNegativeReals)
-    m.stes_grid_charge = pyo.Var(m.t, within=pyo.NonNegativeReals)
-    m.stes_discharge = pyo.Var(m.t, within=pyo.NonNegativeReals)
     m.stes_capacity = pyo.Var(within=pyo.NonNegativeReals)
+    m.stes_soc = pyo.Var(m.t, within=pyo.NonNegativeReals)
+
+    # Heating stes
+    m.stes_charge_hp_qw = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh] of heat energy
+
+    # Heating houses from the STES
+    m.stes_discharge_hp_qw = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh] of heat energy
 
 
 def heating_vars(m):
@@ -56,8 +59,8 @@ def heating_vars(m):
     m.electric_heating = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh] of heat energy
 
     # A more efficient way of heating houses, still using electricity.
-    # Upper bounded by hp_air_to_floor_max_heating
-    m.hp_air_to_floor_heating = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh] of heat energy
+    # Upper bounded by house_hp_max_wq
+    m.house_hp_qw = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh] of heat energy
 
 
 def dso_vars(m_dso):

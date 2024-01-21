@@ -10,7 +10,7 @@ import pandas as pd
 
 
 def total_lec_cost_rule(m):
-    # Investment cost
+    # PV investment cost
     pv_investment_cost = m.pv_invest_cost * sum(m.pv_installed_capacity[h] for h in m.h)
 
     # Power market cost
@@ -24,9 +24,10 @@ def total_lec_cost_rule(m):
 
     grid_capacity_cost = m.peak_grid_volume * m.cnt
 
-    stes_investment_cost = m.stes_capacity * m.cap_investment_cost # TODO: Legg til binærvariabel for stes-investering
+    # STES investment cost
+    stes_investment_cost = m.stes_capacity * m.cap_investment_cost  # TODO: Legg til binærvariabel for stes-investering
 
-    return pv_investment_cost + power_cost + tax_cost + grid_volume_cost + grid_capacity_cost
+    return pv_investment_cost + power_cost + tax_cost + grid_volume_cost + grid_capacity_cost + stes_investment_cost
 
 
 def total_cost_objective_function(m):

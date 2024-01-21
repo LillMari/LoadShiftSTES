@@ -24,7 +24,6 @@ EL_TH_RATIO = pd.read_csv('PROFet/el_th_ratio.csv', index_col=0)
 
 
 def annualize_cost(cost, lifetime=30, interest=0.05):
-    # TODO: sjekk lifetime og interest
     annuity_factor = (1 - 1/(1+interest)**lifetime)/interest
     return cost/annuity_factor
 
@@ -74,7 +73,8 @@ class ModelBuilder:
         self.load_params = self._get_load_params(self.city, self.num_houses)
         self.pv_params = self._get_pv_params()
         self.stes_params = self._get_stes_params()
-        self.hp_params = self._get_hp_params()
+        self.stes_hp_params = self._get_stes_hp_params()
+        self.house_hp_params = self._get_house_hp_params()
         self.power_market_params = self._get_power_market_params()
         self.dso_params = self._get_dso_params()
 
@@ -95,9 +95,9 @@ class ModelBuilder:
         return el_load_profiles_df, th_load_profiles_df
 
     def _get_load_params(self, city, num_houses):
-        el_load_profiles_df, th_load_profiles_df = self._get_load_profiles(city, num_houses)
-        return {'el_load': el_load_profiles_df,
-                'thermal_load': th_load_profiles_df}
+        el_demand_profiles_df, th_demand_profiles_df = self._get_load_profiles(city, num_houses)
+        return {'el_demand': el_demand_profiles_df,
+                'th_demand': th_demand_profiles_df}
 
     def _get_pv_params(self):
         """
@@ -105,20 +105,18 @@ class ModelBuilder:
         :return:
         """
         return {'pv_production': PV_GEN_PROFILE,
-                'pv_invest_cost': annualize_cost(3000),   # TODO: Finn investeringskostnad
-                'max_pv_capacity': 15}   # TODO: Finn fornuftig grense
+                'pv_invest_cost': annualize_cost(450),   # Specific investment cost based on 2020 prices [€/kWp]
+                'max_pv_capacity': 15}  # Max installed capacity is limited by available rooftop area
 
-    def _get_hp_params(self):
+    def _get_house_hp_params(self):
         """
-
         :return:
         """
         # TODO: finn verdier
-        return {'air_to_floor_cop': 3, 'air_to_floor_max_heating': 10}
+        return {'cop': 3, 'max_total_qw': 10}
 
     def _get_stes_params(self):
         """
-
         :return:
         """
         # TODO: finn greie parameterverdier
@@ -126,24 +124,26 @@ class ModelBuilder:
                 'cap_investment_cost': annualize_cost(0),
                 'installed_capacity': 0,
                 'init_SOC': 0,
-                'max_charge': 0,
-                'max_discharge': 0,
-                'eta_charge': 0,
-                'eta_discharge': 0,
-                'heat_loss': 0
-            }
+                'eta_charge': 1,
+                'eta_discharge': 1,
+                'heat_loss': 1,
+                'charge_cop': 3,
+                'charge_max_qw': 1000,  # kWh/h
+                'discharge_cop': 100,
+                'discharge_max_qw': 1000,  # kWh/h
+                'hp_investment_cost': 0
+                }
 
     def _get_power_market_params(self):
         # TODO: Legg til ordentlige priser
         price = np.sin((np.arange(8760)/8760 + 0.2)*2*np.pi)*.5 + .55
 
-        return {'power_market_price': pd.Series(data=price, index=self.hours),  # EUR/kWh
-                'tax': 0,  # TODO
+        return {'power_market_price': pd.Series(data=price, index=self.hours),  # [EUR/kWh]
+                'tax': 16.69 * 1e-2,  # 2021 electricity tax [cents/kWh]
                 'NM': 1  # TODO
                 }
 
     def _get_dso_params(self):
-
         return {
             'existing_transmission_capacity': 100,  # kW TODO: Proper value
             'grid_invest_cost': 10,  # [EUR/kWp] TODO: Proper value
@@ -174,11 +174,11 @@ class ModelBuilder:
         m = self.create_base_model()
 
         # Parameters
-        set_load_params(m, self.load_params)
+        set_demand_params(m, self.load_params)
         set_pv_params(m, self.pv_params)
         set_power_market_params(m, self.power_market_params)
-        set_STES_params(m, self.stes_params)
-        set_hp_params(m, self.hp_params)
+        set_stes_params(m, self.stes_params)
+        set_house_hp_params(m, self.house_hp_params)
         set_tariff_params(m, tariff_params)
 
         # Variables

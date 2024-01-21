@@ -25,24 +25,23 @@ def array_init_wrapper(array):
 #
 #
 
-def set_load_params(m, load_params):
+def set_demand_params(m, demand_params):
     """
 
     :param m: model
-    :param load_params:
+    :param demand_params:
     :return:
     """
-    m.el_load = pyo.Param(m.h_t,
-                          initialize=df_init_wrapper(load_params['el_load']),
-                          within=pyo.NonNegativeReals)
-    m.th_load = pyo.Param(m.h_t,
-                          initialize=df_init_wrapper(load_params['thermal_load']),
-                          within=pyo.NonNegativeReals)
+    m.el_demand = pyo.Param(m.h_t,
+                            initialize=df_init_wrapper(demand_params['el_demand']),
+                            within=pyo.NonNegativeReals)
+    m.th_demand = pyo.Param(m.h_t,
+                            initialize=df_init_wrapper(demand_params['th_demand']),
+                            within=pyo.NonNegativeReals)
 
 
 def set_pv_params(m, pv_params):
     """
-
     :param m:
     :param pv_params:
     :return:
@@ -78,19 +77,13 @@ def set_tariff_params(m, tariff_params):
                       within=pyo.NonNegativeReals)  # Capacity-based network tariff [EUR/kW]
 
 
-def set_hp_params(m, hp_params):
-    """
-    :param m:
-    :param hp_params:
-    :return:
-    """
-    # TODO: Potentially change air->floor COP based on outside temperature
-    m.hp_air_to_floor_cop = pyo.Param(initialize=hp_params['air_to_floor_cop'], within=pyo.NonNegativeReals)
-    m.hp_air_to_floor_max_heating = pyo.Param(m.h,
-                                              initialize=hp_params['air_to_floor_max_heating'],
-                                              within=pyo.NonNegativeReals)
+def set_house_hp_params(m, house_hp_params):
+    m.house_hp_cop = pyo.Param(initialize=house_hp_params['cop'], within=pyo.NonNegativeReals)
+    # Max delivered heat to all houses at once [kWh/h]
+    m.house_hp_max_qw = pyo.Param(initialize=house_hp_params['max_qw'], within=pyo.NonNegativeReals)
 
-def set_STES_params(m, stes_params):
+
+def set_stes_params(m, stes_params):
     """
 
     :param m:
@@ -104,12 +97,15 @@ def set_STES_params(m, stes_params):
     m.STES_capacity = pyo.Param(initialize=stes_params['installed_capacity'], within=pyo.NonNegativeReals)
     m.STES_initial_SOC = pyo.Param(initialize=stes_params['init_SOC'], within=pyo.NonNegativeReals)
 
-    m.STES_max_charge = pyo.Param(initialize=stes_params['max_charge'], within=pyo.NonNegativeReals)
-    m.STES_max_discharge = pyo.Param(initialize=stes_params['max_discharge'], within=pyo.NonNegativeReals)
-
     m.eta_charge = pyo.Param(initialize=stes_params['eta_charge'], within=pyo.NonNegativeReals)
     m.eta_discharge = pyo.Param(initialize=stes_params['eta_discharge'], within=pyo.NonNegativeReals)
     m.heat_loss = pyo.Param(initialize=stes_params['heat_loss'], within=pyo.NonNegativeReals)
+
+    m.stes_charge_hp_cop = pyo.Param(initialize=stes_params['charge_cop'], within=pyo.NonNegativeReals)
+    m.stes_charge_hp_max_qw = pyo.Param(initialize=stes_params['max_charge_qw'], within=pyo.NonNegativeReals)
+
+    m.stes_discharge_hp_cop = pyo.Param(initialize=stes_params['discharge_cop'], within=pyo.NonNegativeReals)
+    m.stes_discharge_hp_max_qw = pyo.Param(initialize=stes_params['discharge_max_qw'], within=pyo.NonNegativeReals)
 
 
 def set_dso_params(m_dso, dso_params, net_use_params):
