@@ -21,11 +21,12 @@ DEMAND = pd.read_csv('Lastprofiler_sigurd/demand.csv')
 ANSWERS = pd.read_csv('Lastprofiler_sigurd/answers.csv')
 PV_GEN_PROFILE = pd.read_csv('PV_profiler/pv_profil_oslo.csv', skiprows=3)['electricity']  # kW/kWp
 EL_TH_RATIO = pd.read_csv('PROFet/el_th_ratio.csv', index_col=0)
+NOK2024_TO_EUR = 0.087
 
 
 def annualize_cost(cost, lifetime=30, interest=0.05):
-    annuity_factor = (1 - 1/(1+interest)**lifetime)/interest
-    return cost/annuity_factor
+    annuity_factor = (1 - 1 / (1 + interest) ** lifetime) / interest
+    return cost / annuity_factor
 
 
 def get_valid_household_ids(city):
@@ -62,10 +63,59 @@ def extract_load_profile(id):
     return el_load, th_load
 
 
+def hour_month_conversions():
+    """
+    Gives information about the hours and months of a non-leap year
+
+    First returns a mapping from the 8760 different hours of the year, to the month. Both 0-indexed.
+
+    The next two return values are the first and last hour of the year belonging to each month.
+    Example: Month [1], February starts at hour 744 and ends with hour 1415 (inclusive)
+    """
+    days_per_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+    month_from_hour = [month for month, days in enumerate(days_per_month) for _ in range(days * 24)]
+    first_hour_in_month = np.cumsum([0] + days_per_month[:-1]) * 24
+    last_hour_in_month = np.cumsum(days_per_month) * 24 - 1
+
+    return month_from_hour, first_hour_in_month, last_hour_in_month
+
+
+def get_hourly_power_volume_tariff(month_from_hour, first_day_of_year=4):
+    """
+    Gives volume network tariff for each hour of the year, given the first day of the year (friday = 4)
+    :return:
+    """
+    power_volume_tariff = {'volume_tariff_winter_day': 39.54 * NOK2024_TO_EUR,
+                         'volume_tariff_winter_night': 32.09 * NOK2024_TO_EUR,
+                         'volume_tariff_summer_day': 48.25 * NOK2024_TO_EUR,
+                         'volume_tariff_summer_night': 40.75 * NOK2024_TO_EUR
+                         }
+    hourly_power_volume_tariff = np.zeros(shape=8760)
+    for t in range(8760):
+        hour_in_day = t % 24
+        day_in_week = ((t//24) + first_day_of_year) % 7
+        month = month_from_hour[t]
+        if month in [0, 1, 2]:                                                              # Winter
+            if day_in_week in range(0, 6) and hour_in_day in range(6, 22):                  # Weekday and daytime
+                hourly_power_volume_tariff[t] = power_volume_tariff['volume_tariff_winter_day']
+            else:                                                                           # Nighttime og weekend
+                hourly_power_volume_tariff[t] = power_volume_tariff['volume_tariff_winter_night']
+        else:                                                                               # Summer
+            if day_in_week in range(0, 6) and hour_in_day in range(6, 22):                  # Weekday and daytime
+                hourly_power_volume_tariff[t] = power_volume_tariff['volume_tariff_summer_day']
+            else:                                                                           # Nighttime og weekend
+                hourly_power_volume_tariff[t] = power_volume_tariff['volume_tariff_summer_night']
+
+        return hourly_power_volume_tariff
+
+
 class ModelBuilder:
     def __init__(self, num_houses, seed=1234):
         self.rng = np.random.default_rng(seed=seed)
         self.hours = range(8760)
+        self.months = range(12)
+        self.month_from_hour, self.first_hour_in_month, self.last_hour_in_month = hour_month_conversions()
 
         self.city = 4  # Oslo, in the survey
         self.num_houses = num_houses
@@ -75,6 +125,7 @@ class ModelBuilder:
         self.stes_params = self._get_stes_params()
         self.house_hp_params = self._get_house_hp_params()
         self.power_market_params = self._get_power_market_params()
+        self.tariff_params = self._get_tariff_params()
 
     def _get_load_profiles(self, city, num_houses):
         all_ids = get_valid_household_ids(city)
@@ -102,7 +153,7 @@ class ModelBuilder:
         :return:
         """
         return {'pv_production': PV_GEN_PROFILE,
-                'pv_invest_cost': annualize_cost(450),   # Specific investment cost based on 2020 prices [€/kWp]
+                'pv_invest_cost': annualize_cost(450),  # Specific investment cost based on 2020 prices [€/kWp]
                 'max_pv_capacity': 15}  # Max installed capacity is limited by available rooftop area
 
     def _get_house_hp_params(self):
@@ -114,54 +165,61 @@ class ModelBuilder:
                 'max_qw': 10  # [kWh/h]
                 }
 
-    def _get_stes_params(self):
+    def _get_stes_params(self, max_capacity=0):
         """
         :return:
         """
         # TODO: finn greie parameterverdier
         return {'investment_cost': annualize_cost(0),  # [EUR/year] cost of any STES
                 'cap_investment_cost': annualize_cost(0),  # [EUR/year/kWh] cost of STES capacity
-                'max_installed_capacity': 0,  # [kWh] of stored heat
-                # 'init_SOC': 0,
-                'heat_retainment': 0.85**(1/(6*30*24)),  # [1/h] # TODO: Value based on size
-
+                'max_installed_capacity': max_capacity,  # [kWh] of stored heat
+                'heat_retainment': 0.85 ** (1 / (6 * 30 * 24)),  # [1/h] # TODO: Value based on size
                 'charge_hp_investment_cost': 0,
-                'charge_eta': 1,
+                'charge_eta': 0.99,
                 'charge_cop': 3,
                 'charge_max_qw': 1000,  # kWh/h TODO: Base on investment?
-                'discharge_eta': 1,
+                'discharge_eta': 0.99,
                 'discharge_cop': 100,
                 'discharge_max_qw': 1000,  # kWh/h TODO: Base on investment?
                 }
 
     def _get_power_market_params(self):
         # TODO: Legg til ordentlige priser
-        price = (np.sin((np.arange(8760)/8760 + 0.2)*2*np.pi)*.5 + .55) / 10
+        price = (np.sin((np.arange(8760) / 8760 + 0.2) * 2 * np.pi) * .5 + .55) / 10
 
         return {'power_market_price': pd.Series(data=price, index=self.hours),  # [EUR/kWh]
                 'tax': 16.69 * 1e-2,  # 2021 electricity tax [EUR/kWh]
-                'NM': 0  # Elvia sier 0 nettleie på solgt strøm, men du får ikke noe "negativ" nettleie.
+                'NM': 0,  # Elvia sier 0 nettleie på solgt strøm, men du får ikke noe "negativ" nettleie.
                 }
+
+    def _get_tariff_params(self):
+        volume_network_tariff = get_hourly_power_volume_tariff(self.month_from_hour)
+
+        return {'peak_power_tariff': 95.39 * NOK2024_TO_EUR,
+                'peak_power_base': 24.65 * NOK2024_TO_EUR,
+                'volume_network_tariff': volume_network_tariff}
 
     def create_base_model(self):
         m = pyo.ConcreteModel()
 
         # Sets
         m.t = pyo.Set(initialize=self.hours)
+        m.months = pyo.Set(initialize=self.months)
+        m.month_from_hour = pyo.Param(m.t, initialize=self.month_from_hour)
         m.h = pyo.Set(initialize=range(self.num_houses))
         m.h_t = pyo.Set(initialize=m.h * m.t)
         m.sign = pyo.Set(initialize=[1, -1])
 
         return m
 
-    def create_lec_model(self, tariff_params):
+    def create_lec_model(self):
         """
         Creates a linear model of households with energy and heating needs (parameters).
         Power grid electricity is priced as a parameter, while local market prices are variable.
 
         :param tariff_params: a dict describing network tariffs, that are paid to the DSO. Contains:
          - 'vnt': volumetric network tariff [EUR/kWh]
-         - 'cnt': capacity-based network tariff [EUR/kWp]
+         - 'peak_capacity_tariff': capacity-based network tariff [EUR/kWp]
         :return: the created model
         """
         m = self.create_base_model()
@@ -172,7 +230,7 @@ class ModelBuilder:
         set_power_market_params(m, self.power_market_params)
         set_stes_params(m, self.stes_params)
         set_house_hp_params(m, self.house_hp_params)
-        set_tariff_params(m, tariff_params)
+        set_tariff_params(m, self.tariff_params)
 
         # Variables
         pv_vars(m)
@@ -197,8 +255,6 @@ class ModelBuilder:
          - 'grid_el_import' = (h,t) indexed grid power import per house, per hour [kWh]
          - 'grid_export' = (h,t) indexed grid power export per house, per hour [kWh]
         :return:
-        """
-        pass
 
         m_dso = self.create_base_model()
 
@@ -216,6 +272,8 @@ class ModelBuilder:
         dso_objective_function(m_dso)
 
         return m_dso
+        """
+        pass
 
 
 def lec_scenario():
@@ -224,11 +282,8 @@ def lec_scenario():
     builder = ModelBuilder(5)
 
     opt = pyo.SolverFactory('gurobi_direct')
-    lec_model = builder.create_lec_model(tariff_params={'cnt': 0, 'vnt': 0})
+    lec_model = builder.create_lec_model()
     opt.solve(lec_model, tee=True)
-
-
-    lec_model.
 
 
 def main():

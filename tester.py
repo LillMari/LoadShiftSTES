@@ -1,9 +1,16 @@
 import pandas as pd
 
-index = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13']
+
+def hourly_power_volume_cost():
+    """
+
+    :return:
+    """
+    hours = range(8760)
+    hour_of_day = [i % 24 for i in hours]
+    day_of_week = [(i + 4) % 7 for i in hours]
+    return hour_of_day, day_of_week
 
 
-df = pd.read_csv('Temperaturprofiler/01temp.csv', sep=';', index_col=0)
-for i in index:
-    df2 = pd.read_csv(f'Temperaturprofiler/{i}temp.csv', sep=';', index_col=0)
-    df = pd.concat([df, df2])
+if __name__ == '__main__':
+    a, b = hourly_power_volume_cost()
