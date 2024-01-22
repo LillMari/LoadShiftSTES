@@ -33,11 +33,10 @@ def house_hp_max_heating_rule(m, h, t):
     return m.house_hp_qw[h, t] <= m.house_hp_max_qw
 
 
-def peak_grid_volume_rule(m, t, sign):
-    """
-    peak_grid_volume tracks the maximum usage of the grid
-    """
-    return sign * sum(m.grid_import[h, t] - m.grid_export[h, t] for h in m.h) <= m.peak_grid_volume
+def peak_monthly_volume_rule(m, h, t, sign):
+    month = m.month_from_hour[t]
+    total_consume = m.grid_import[h, t] - m.grid_export[h, t] + m.local_import[h, t] - m.local_export[h, t]
+    return sign * total_consume <= m.peak_monthly_volume[h, month]
 
 
 def pv_curtailment_rule(m, h, t):
@@ -78,7 +77,7 @@ def lec_constraints(m):
     m.thermal_energy_constraint = pyo.Constraint(m.h_t, rule=thermal_energy_rule)
     m.house_hp_max_heating_constraint = pyo.Constraint(m.h_t, rule=house_hp_max_heating_rule)
 
-    m.peak_grid_volume_constraint = pyo.Constraint(m.t * m.sign, rule=peak_grid_volume_rule)
+    m.peak_monthly_volume_constraint = pyo.Constraint(m.h_t * m.sign, rule=peak_monthly_volume_rule)
 
     m.local_market_constraint = pyo.Constraint(m.t, rule=local_market_rule)
 

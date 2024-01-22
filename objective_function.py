@@ -18,12 +18,17 @@ def total_lec_cost_rule(m):
     # Electricity tax cost
     tax_cost = sum(m.tax * (m.grid_import[h, t] + m.local_import[h, t]) for h, t in m.h_t)
 
-    # Grid charges
-    grid_volume_cost = sum((m.grid_import[h, t] - m.NM * m.grid_export[h, t]) * m.vnt for h, t in m.h_t)
-    grid_capacity_cost = m.peak_grid_volume * m.cnt
+    # Volumetric grid charges
+    grid_volume_cost = sum((m.grid_import[h, t] - m.NM * m.grid_export[h, t]
+                            + m.local_import[h, t] - m.NM * m.local_export[h, t]) *
+                           m.volume_network_tariff[t] for h, t in m.h_t)
+
+    # Monthly capacity cost for each household
+    grid_capacity_cost = sum(m.peak_monthly_volume[h, month] for h in m.h for month in m.months) * \
+        m.peak_capacity_tariff + 12 * len(m.h) * m.capacity_tariff_base
 
     # STES investment cost
-    stes_investment_cost = m.stes_capacity * m.cap_investment_cost  # TODO: Legg til binærvariabel for stes-investering
+    stes_investment_cost = m.stes_capacity * m.cap_investment_cost + m.stes_investment_cost
 
     return pv_investment_cost + power_cost + tax_cost + grid_volume_cost + grid_capacity_cost + stes_investment_cost
 
@@ -38,4 +43,3 @@ def dso_cost_rule(m_dso):
 
 def dso_objective_function(m):
     m.dso_objective = pyo.Objective(rule=dso_cost_rule, sense=pyo.minimize)
-

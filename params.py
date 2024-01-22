@@ -71,10 +71,10 @@ def set_power_market_params(m, power_market_params):
 
 
 def set_tariff_params(m, tariff_params):
-    m.vnt = pyo.Param(initialize=tariff_params['vnt'],
-                      within=pyo.NonNegativeReals)  # Volumetric network tariff [EUR/kWh]
-    m.cnt = pyo.Param(initialize=tariff_params['cnt'],
-                      within=pyo.NonNegativeReals)  # Capacity-based network tariff [EUR/kW]
+    m.peak_capacity_tariff = pyo.Param(initialize=tariff_params['peak_power_tariff'],
+                                       within=pyo.NonNegativeReals)  # Capacity-based network tariff [EUR/kW]
+    m.capacity_tariff_base = pyo.Param(initialize=tariff_params['peak_power_base'])
+    m.volume_network_tariff = pyo.Param(m.t, initialize=tariff_params['volume_network_tariff'])
 
 
 def set_house_hp_params(m, house_hp_params):
@@ -91,7 +91,7 @@ def set_stes_params(m, stes_params):
     :return:
     """
     # Seasonal thermal energy storage
-    m.investment_cost = pyo.Param(initialize=stes_params['investment_cost'], within=pyo.NonNegativeReals)
+    m.stes_investment_cost = pyo.Param(initialize=stes_params['investment_cost'], within=pyo.NonNegativeReals)
     m.cap_investment_cost = pyo.Param(initialize=stes_params['cap_investment_cost'], within=pyo.NonNegativeReals)
 
     m.max_stes_capacity = pyo.Param(initialize=stes_params['max_installed_capacity'], within=pyo.NonNegativeReals)

@@ -36,7 +36,8 @@ def grid_vars(m):
     m.local_import = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh/h]
     m.local_export = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh/h]
 
-    m.peak_grid_volume = pyo.Var(within=pyo.NonNegativeReals)  # [kWh/h] max netto grid volume, either import or export
+    # For each household, and each month, its highest total electric consumption or production
+    m.peak_monthly_volume = pyo.Var(m.h * m.months, within=pyo.NonNegativeReals)  # [kWh/h]
 
 
 def stes_vars(m):
