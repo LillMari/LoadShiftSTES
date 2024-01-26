@@ -1,8 +1,7 @@
-
-
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from basescenario import extract_load_profile
 
 
 def plot_one_price_profile(df, scenario, period):
@@ -33,14 +32,12 @@ def plot_PV_price():
     plt.show()
 
 
-if __name__ == '__main__':
-
-    price_profiles = pd.read_csv('Framtidspriser/filtrerte_priser.csv')
+def price_plot():
+    price_profiles = pd.read_csv('../Framtidspriser/filtrerte_priser.csv')
     mean_price = price_profiles[((~price_profiles['Season'].str.contains('peak')) &
                                  (price_profiles['Scenario'] != 'scenario3'))]
     mean_price = mean_price.groupby('Hour')['Price_EURperMWh'].mean()
     sns.lineplot(data=mean_price)
-
 
     scenarios = price_profiles['Scenario'].unique()
     periods = price_profiles['Period'].unique()
@@ -48,3 +45,44 @@ if __name__ == '__main__':
     plot_price_profiles(price_profiles, scenarios[3:10], periods[3:4])
 
     plot_PV_price()
+
+
+months = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+month_hours = [m*24 for m in months]
+month_hours_cum = [sum(month_hours[:x]) for x in range(12)]
+month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+def month_xticks(ax):
+    ax.set_xticks(month_hours_cum)
+    ax.set_xticklabels(month_names)
+
+def plot_el_th_demand_profile():
+    el_demand, th_demand = extract_load_profile(1743)
+
+    plt.figure()
+    plt.plot(el_demand + th_demand)
+    plt.grid()
+    plt.title("El + Th")
+    month_xticks(plt.gca())
+    plt.show()
+
+    plt.figure()
+    plt.plot(th_demand)
+    plt.grid()
+    plt.title("Th")
+    month_xticks(plt.gca())
+    plt.show()
+
+    plt.figure()
+    plt.plot(el_demand)
+    plt.grid()
+    plt.title("El")
+    month_xticks(plt.gca())
+    plt.show()
+
+    return el_demand, th_demand
+
+
+if __name__ == '__main__':
+
+    el_demand, th_demand = plot_el_th_demand_profile()

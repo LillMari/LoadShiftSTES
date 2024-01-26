@@ -7,6 +7,7 @@ Created on Thu Jan 05 2024
 
 import pyomo.environ as pyo
 import pandas as pd
+import os
 import numpy as np
 from params import *
 from variables import *
@@ -21,6 +22,7 @@ DEMAND = pd.read_csv('Lastprofiler_sigurd/demand.csv')
 ANSWERS = pd.read_csv('Lastprofiler_sigurd/answers.csv')
 PV_GEN_PROFILE = pd.read_csv('PV_profiler/pv_profil_oslo.csv', skiprows=3)['electricity']  # kW/kWp
 EL_TH_RATIO = pd.read_csv('PROFet/el_th_ratio.csv', index_col=0)
+SPOT_PRICES = pd.read_csv('Historic_spot_prices/spot_price.csv')
 NOK2024_TO_EUR = 0.087
 
 
@@ -40,6 +42,8 @@ def get_valid_household_ids(city):
     candidates = candidates[candidates['Q28'].isin((1, 3))]
     candidates = candidates[candidates['Q27_6'] == 0]  # Oljefyr
     candidates = candidates[candidates['Q27_7'] == 0]  # Fjernvarme
+    candidates = candidates[candidates['Q27_5'] == 0]  # Peis
+    candidates = candidates[candidates['Q27_3'] == 0]  # Varmepumpe
     candidates = candidates[candidates['ID'].isin(DEMAND['ID'].unique())]
     return candidates['ID']
 
@@ -165,29 +169,26 @@ class ModelBuilder:
                 'max_qw': 10  # [kWh/h]
                 }
 
-    def _get_stes_params(self, max_capacity=0):
+    def _get_stes_params(self, max_capacity=400*10**3):
         """
         :return:
         """
         # TODO: finn greie parameterverdier
         return {'investment_cost': annualize_cost(0),  # [EUR/year] cost of any STES
-                'cap_investment_cost': annualize_cost(0),  # [EUR/year/kWh] cost of STES capacity
+                'cap_investment_cost': annualize_cost(14/20),  # [EUR/year/kWh] cost of STES capacity
                 'max_installed_capacity': max_capacity,  # [kWh] of stored heat
                 'heat_retainment': 0.85 ** (1 / (6 * 30 * 24)),  # [1/h] # TODO: Value based on size
                 'charge_hp_investment_cost': 0,
                 'charge_eta': 0.99,
                 'charge_cop': 3,
-                'charge_max_qw': 1000,  # kWh/h TODO: Base on investment?
+                'charge_max_qw': 100,  # kWh/h TODO: Base on investment?
                 'discharge_eta': 0.99,
                 'discharge_cop': 100,
-                'discharge_max_qw': 1000,  # kWh/h TODO: Base on investment?
+                'discharge_max_qw': 100,  # kWh/h TODO: Base on investment?
                 }
 
     def _get_power_market_params(self):
-        # TODO: Legg til ordentlige priser
-        price = (np.sin((np.arange(8760) / 8760 + 0.2) * 2 * np.pi) * .5 + .55) / 10
-
-        return {'power_market_price': pd.Series(data=price, index=self.hours),  # [EUR/kWh]
+        return {'power_market_price': SPOT_PRICES.iloc[:, 1]*1e-3,  # [EUR/kWh]
                 'tax': 16.69 * 1e-2,  # 2021 electricity tax [EUR/kWh]
                 'NM': 0,  # Elvia sier 0 nettleie på solgt strøm, men du får ikke noe "negativ" nettleie.
                 }
@@ -212,7 +213,7 @@ class ModelBuilder:
 
         return m
 
-    def create_lec_model(self):
+    def create_lec_model(self, enable_stes, enable_local_market):
         """
         Creates a linear model of households with energy and heating needs (parameters).
         Power grid electricity is priced as a parameter, while local market prices are variable.
@@ -223,6 +224,8 @@ class ModelBuilder:
         :return: the created model
         """
         m = self.create_base_model()
+        m.enable_stes = pyo.Param(initialize=enable_stes, within=pyo.Boolean)
+        m.enable_local_market = pyo.Param(initialize=enable_local_market, within=pyo.Boolean)
 
         # Parameters
         set_demand_params(m, self.load_params)
@@ -276,19 +279,69 @@ class ModelBuilder:
         pass
 
 
-def lec_scenario():
+def write_results_to_csv(m, directory):
+    if not os.path.exists(f'Results/{directory}'):
+        os.makedirs(f'Results/{directory}')
+
+    pv = m.pv_installed_capacity.extract_values()
+    pd.DataFrame.from_dict(data=pv, orient='index',
+                           columns=['installed_pv_capacity']).to_csv(f'Results/{directory}/installed_pv_capacity.csv')
+
+    grid_import = pd.DataFrame.from_dict(m.grid_import.extract_values(), orient='index', columns=['grid_import'])
+    grid_import = grid_import.groupby([grid_import.index.str[1]]).sum()
+    grid_import.to_csv(f'Results/{directory}/grid_import.csv')
+
+    grid_export = pd.DataFrame.from_dict(m.grid_export.extract_values(), orient='index', columns=['grid_export'])
+    grid_export = grid_export.groupby([grid_export.index.str[1]]).sum()
+    grid_export.to_csv(f'Results/{directory}/grid_export.csv')
+
+    local_import = pd.DataFrame.from_dict(m.local_import.extract_values(), orient='index', columns=['local_import'])
+    local_import = local_import.groupby([local_import.index.str[1]]).sum()
+    local_import.to_csv(f'Results/{directory}/local_import.csv')
+
+    local_export = pd.DataFrame.from_dict(m.local_export.extract_values(), orient='index', columns=['local_export'])
+    local_export = local_export.groupby([local_export.index.str[1]]).sum()
+    local_export.to_csv(f'Results/{directory}/local_export.csv')
+
+    stes_capacity = m.stes_capacity.extract_values()
+    pd.DataFrame.from_dict(data=stes_capacity, orient='index',
+                           columns=['stes_capacity']).to_csv(f'Results/{directory}/stes_capacity.csv')
+
+    monthly_peak = m.peak_monthly_volume.extract_values()
+    pd.DataFrame.from_dict(data=monthly_peak, orient='index',
+                           columns=['monthly_peak']).to_csv(f'Results/{directory}/peak_monthly_volume.csv')
+
+    th_demand = pd.DataFrame.from_dict(m.th_demand.extract_values(), orient='index', columns=['th_demand'])
+    th_demand = th_demand.groupby([th_demand.index.str[1]]).sum()
+    th_demand.to_csv(f'Results/{directory}/th_demand.csv')
+
+    el_demand = pd.DataFrame.from_dict(m.el_demand.extract_values(), orient='index', columns=['el_demand'])
+    el_demand = el_demand.groupby([el_demand.index.str[1]]).sum()
+    el_demand.to_csv(f'Results/{directory}/el_demand.csv')
+
+    #el_demand = m.el_demand.extract_values()
+    #demand = {i: th_demand[i] + el_demand[i] for i in el_demand.keys()}
+    #total_demand = pd.DataFrame.from_dict(demand, orient='index', columns=['total_demand'])
+    #total_demand = total_demand.groupby([total_demand.index.str[1]]).sum()
+    total_demand = th_demand + el_demand
+    total_demand.to_csv(f'Results/{directory}/total_demand.csv')
+
+
+def lec_scenario(directory, enable_stes, enable_local_market):
     global lec_model
 
     builder = ModelBuilder(5)
 
     opt = pyo.SolverFactory('gurobi_direct')
-    lec_model = builder.create_lec_model()
+    lec_model = builder.create_lec_model(enable_stes, enable_local_market)
     opt.solve(lec_model, tee=True)
 
+    write_results_to_csv(lec_model, directory)
 
-def main():
-    lec_scenario()
+
+def main(directory):
+    return lec_scenario(directory, enable_stes=True, enable_local_market=False)
 
 
 if __name__ == "__main__":
-    main()
+    main('BaseScenario')

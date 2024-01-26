@@ -27,19 +27,16 @@ def total_lec_cost_rule(m):
     grid_capacity_cost = sum(m.peak_monthly_volume[h, month] for h in m.h for month in m.months) * \
         m.peak_capacity_tariff + 12 * len(m.h) * m.capacity_tariff_base
 
+    # TODO: Elvia's -5 øre per kWh exported
+
     # STES investment cost
-    stes_investment_cost = m.stes_capacity * m.cap_investment_cost + m.stes_investment_cost
+    if m.enable_stes:
+        stes_investment_cost = m.stes_capacity * m.cap_investment_cost + m.stes_investment_cost
+    else:
+        stes_investment_cost = 0
 
     return pv_investment_cost + power_cost + tax_cost + grid_volume_cost + grid_capacity_cost + stes_investment_cost
 
 
 def total_cost_objective_function(m):
     m.lec_objective = pyo.Objective(rule=total_lec_cost_rule, sense=pyo.minimize)
-
-
-def dso_cost_rule(m_dso):
-    return m_dso.grid_capacity_cost + m_dso.grid_loss_cost
-
-
-def dso_objective_function(m):
-    m.dso_objective = pyo.Objective(rule=dso_cost_rule, sense=pyo.minimize)

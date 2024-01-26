@@ -24,28 +24,29 @@ def pv_vars(m):
 
 
 def grid_vars(m):
-    """
-    :param m:
-    :return:
-    """
     # Power from and to power market
     m.grid_import = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh/h]
     m.grid_export = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh/h]
 
     # Local market
-    m.local_import = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh/h]
-    m.local_export = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh/h]
+    if m.enable_local_market:
+        bounds = (0, None)
+    else:
+        bounds = (0, 0)
+    m.local_import = pyo.Var(m.h_t, within=pyo.NonNegativeReals, bounds=bounds)  # [kWh/h]
+    m.local_export = pyo.Var(m.h_t, within=pyo.NonNegativeReals, bounds=bounds)  # [kWh/h]
 
     # For each household, and each month, its highest total electric consumption or production
     m.peak_monthly_volume = pyo.Var(m.h * m.months, within=pyo.NonNegativeReals)  # [kWh/h]
 
 
 def stes_vars(m):
-    """
-    :param m:
-    :return:
-    """
-    m.stes_capacity = pyo.Var(within=pyo.NonNegativeReals, bounds=(0, m.max_stes_capacity))
+
+    if m.enable_stes:
+        bounds = (0, m.max_stes_capacity)
+    else:
+        bounds = (0, 0)
+    m.stes_capacity = pyo.Var(within=pyo.NonNegativeReals, bounds=bounds)
     m.stes_soc = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
     # Heating stes

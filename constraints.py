@@ -35,7 +35,7 @@ def house_hp_max_heating_rule(m, h, t):
 
 def peak_monthly_volume_rule(m, h, t, sign):
     month = m.month_from_hour[t]
-    total_consume = m.grid_import[h, t] - m.grid_export[h, t] + m.local_import[h, t] - m.local_export[h, t]
+    total_consume = m.grid_import[h, t] - m.grid_export[h, t]
     return sign * total_consume <= m.peak_monthly_volume[h, month]
 
 
@@ -45,6 +45,20 @@ def pv_curtailment_rule(m, h, t):
 
 def local_market_rule(m, t):
     return sum(m.local_import[h, t] - m.local_export[h, t] for h in m.h) == 0
+
+
+def stes_discharging_rule(m):
+    discharging_months = [0, 1, 10, 11]  # STES can only deliver thermal energy during
+                                         # winter due to system inertia
+    return sum(m.stes_discharge_hp_qw[h, t] for h, t in m.h_t
+               if m.month_from_hour[t] not in discharging_months) == 0
+
+
+def stes_charging_rule(m, t):
+    discharging_months = [0, 1, 10, 11]  # STES can only deliver thermal energy during
+                                         # winter due to system inertia
+    return sum(m.stes_charge_hp_qw[h, t] for h, t in m.h_t
+               if m.month_from_hour[t] in discharging_months) == 0
 
 
 def stes_max_charging_rule(m, t):
@@ -82,6 +96,8 @@ def lec_constraints(m):
     m.local_market_constraint = pyo.Constraint(m.t, rule=local_market_rule)
 
     # STES constraints
+    m.stes_discharging_constraint = pyo.Constraint(rule=stes_discharging_rule)
+    m.stes_charging_constraint = pyo.Constraint(rule=stes_charging_rule)
     m.stes_max_charging_constraint = pyo.Constraint(m.t, rule=stes_max_charging_rule)
     m.stes_max_discharging_constraint = pyo.Constraint(m.t, rule=stes_max_discharging_rule)
     m.stes_max_soc_constraint = pyo.Constraint(m.t, rule=stes_max_soc_rule)
