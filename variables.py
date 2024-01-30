@@ -9,18 +9,9 @@ import pyomo.environ as pyo
 import pandas as pd
 
 
-"""
-VARIABLES
-"""
-
-
 def pv_vars(m):
-    # TODO: legge til max og min på installert effekt (og curtailment option?)
-    """
-    :param m:
-    :return:
-    """
-    m.pv_installed_capacity = pyo.Var(m.h, within=pyo.NonNegativeReals, bounds=(0, m.max_pv_capacity))
+    # How much PV is installed on each house
+    m.pv_installed_capacity = pyo.Var(m.h, within=pyo.NonNegativeReals, bounds=(0, m.max_pv_capacity))  # [kWp]
 
 
 def grid_vars(m):
@@ -36,8 +27,11 @@ def grid_vars(m):
     m.local_import = pyo.Var(m.h_t, within=pyo.NonNegativeReals, bounds=bounds)  # [kWh/h]
     m.local_export = pyo.Var(m.h_t, within=pyo.NonNegativeReals, bounds=bounds)  # [kWh/h]
 
-    # For each household, and each month, its highest total electric consumption or production
-    m.peak_monthly_volume = pyo.Var(m.h * m.months, within=pyo.NonNegativeReals)  # [kWh/h]
+    # For each household, and each month, its highest hourly electric consumption or production
+    m.peak_monthly_house_volume = pyo.Var(m.h, m.months, within=pyo.NonNegativeReals)  # [kWh/h]
+
+    # For each month, the highest hourly electric volume into or leaving the neighbourhood
+    m.peak_monthly_total_volume = pyo.Var(m.months, within=pyo.NonNegativeReals)  # [kWh/h]
 
 
 def stes_vars(m):
@@ -46,10 +40,11 @@ def stes_vars(m):
         bounds = (0, m.max_stes_capacity)
     else:
         bounds = (0, 0)
+
     m.stes_capacity = pyo.Var(within=pyo.NonNegativeReals, bounds=bounds)
     m.stes_soc = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
-    # Heating stes
+    # Heating up the STES
     m.stes_charge_hp_qw = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh] of heat energy
 
     # Heating houses from the STES
@@ -66,6 +61,8 @@ def heating_vars(m):
 
 
 def dso_vars(m_dso):
+    pass
+    """
     # additional peak capacity being built [kW]
     m_dso.grid_capacity_investment = pyo.Var(within=pyo.NonNegativeReals)
 
@@ -74,3 +71,4 @@ def dso_vars(m_dso):
     # Purely derived variables
     m_dso.grid_capacity_cost = pyo.Var(within=pyo.NonNegativeReals)
     m_dso.grid_loss_cost = pyo.Var(within=pyo.NonNegativeReals)
+    """

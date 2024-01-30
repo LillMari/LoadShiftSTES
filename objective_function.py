@@ -24,8 +24,8 @@ def total_lec_cost_rule(m):
                            m.volume_network_tariff[t] for h, t in m.h_t)
 
     # Monthly capacity cost for each household
-    grid_capacity_cost = sum(m.peak_monthly_volume[h, month] for h in m.h for month in m.months) * \
-        m.peak_capacity_tariff + 12 * len(m.h) * m.capacity_tariff_base
+    grid_capacity_cost = sum(m.peak_monthly_house_volume[h, month] for h in m.h for month in m.months) * \
+                         m.peak_capacity_tariff + 12 * len(m.h) * m.capacity_tariff_base
 
     # TODO: Elvia's -5 øre per kWh exported
 
