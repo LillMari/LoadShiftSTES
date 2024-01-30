@@ -121,12 +121,16 @@ class ModelBuilder:
         self.num_houses = num_houses
         self.enable_stes = enable_stes
         self.enable_local_market = enable_local_market
+        self.peak_power_tariff = 95.39 * NOK2024_TO_EUR
+        self.peak_power_base = 24.65 * NOK2024_TO_EUR
+        self.el_demand_profiles, self.th_demand_profiles = self._get_load_profiles()
 
         self.load_params = self._get_load_params()
         self.pv_params = self._get_pv_params()
         self.stes_params = self._get_stes_params()
         self.house_hp_params = self._get_house_hp_params()
         self.power_market_params = self._get_power_market_params()
+        self.local_market_params = self._get_local_market_tariff()
         self.tariff_params = self._get_tariff_params()
 
     def _get_load_profiles(self):
@@ -145,9 +149,30 @@ class ModelBuilder:
         return el_load_profiles_df, th_load_profiles_df
 
     def _get_load_params(self):
-        el_demand_profiles_df, th_demand_profiles_df = self._get_load_profiles()
-        return {'el_demand': el_demand_profiles_df,
-                'th_demand': th_demand_profiles_df}
+        return {'el_demand': self.el_demand_profiles,
+                'th_demand': self.th_demand_profiles}
+
+    def _get_local_market_tariff(self):
+        """
+        Calculate what the peak demand network tariff should be in case of local market
+        """
+        total_demand = self.el_demand_profiles + self.th_demand_profiles
+        total_demand['lec'] = total_demand.sum(axis=1)
+        total_demand['month'] = self.month_from_hour
+        monthly_house_demand = total_demand.groupby('month')
+        monthly_house_peaks = monthly_house_demand.max()
+
+        peak_capacity_cost = self.peak_power_tariff
+        peak_cost_base = self.peak_power_base
+
+        # Power capacity cost of the houses if no PV or load flexibility is available
+        no_local_market_cost = monthly_house_peaks.iloc[:, 0:self.num_houses] * peak_capacity_cost + peak_cost_base
+        total_peak_cost = no_local_market_cost.sum().sum()
+
+        # Local market peak cost
+        lm_peak_capacity_cost = total_peak_cost / monthly_house_peaks.loc[:, 'lec'].sum()
+
+        return lm_peak_capacity_cost
 
     def _get_pv_params(self):
         """
@@ -197,9 +222,14 @@ class ModelBuilder:
 
     def _get_tariff_params(self):
         volume_network_tariff = get_hourly_power_volume_tariff(self.month_from_hour)
-
-        return {'peak_power_tariff': 95.39 * NOK2024_TO_EUR,
-                'peak_power_base': 24.65 * NOK2024_TO_EUR,
+        if self.enable_local_market:
+            peak_power_tariff = self._get_local_market_tariff()
+            peak_power_base = 0
+        else:
+            peak_power_tariff = self.peak_power_tariff
+            peak_power_base = self.peak_power_base
+        return {'peak_power_tariff': peak_power_tariff,
+                'peak_power_base': peak_power_base,
                 'volume_network_tariff': volume_network_tariff
                 }
 
@@ -298,7 +328,7 @@ def main():
     stes_case = ['stes', True, False]
     stes_lec_case = ['stes_lec', True, True]
 
-    case = base_case
+    case = stes_lec_case
 
     return lec_scenario(directory=case[0], enable_stes=case[1], enable_local_market=case[2])
 

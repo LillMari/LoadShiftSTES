@@ -41,7 +41,7 @@ def peak_monthly_house_volume_rule(m, h, t, sign):
 
 def peak_monthly_total_volume_rule(m, t, sign):
     month = m.month_from_hour[t]
-    total_consume = sum(m.grid_import[h, t] - m.grid_export[h, t] for h in m.houses)
+    total_consume = sum(m.grid_import[h, t] - m.grid_export[h, t] for h in m.h)
     return sign * total_consume <= m.peak_monthly_total_volume[month]
 
 
