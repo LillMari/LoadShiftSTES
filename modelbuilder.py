@@ -70,9 +70,8 @@ def extract_load_profile(id):
 
 def get_month_from_hour_map():
     """
-    Gives information about the hours and months of a non-leap year
-
-    First returns a mapping from the 8760 different hours of the year, to the month. Both 0-indexed.
+    Gives information about the hours and months of a non-leap year.
+    :return: a mapping from the 8760 different hours of the year, to the month. Both 0-indexed.
     """
     days_per_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
@@ -86,10 +85,11 @@ def get_hourly_power_volume_tariff(month_from_hour, first_day_of_year=4):
     Gives volume network tariff for each hour of the year, given the first day of the year (friday = 4)
     :return:
     """
-    winter_day = 39.54 * NOK2024_TO_EUR
-    winter_night = 32.09 * NOK2024_TO_EUR
-    summer_day = 48.25 * NOK2024_TO_EUR
-    summer_night = 40.75 * NOK2024_TO_EUR
+    # volume tariff for grid import [EUR/kWh]
+    winter_day = .3954 * NOK2024_TO_EUR
+    winter_night = .3209 * NOK2024_TO_EUR
+    summer_day = .4825 * NOK2024_TO_EUR
+    summer_night = .4075 * NOK2024_TO_EUR
 
     hourly_power_volume_tariff = np.zeros(shape=8760)
     for t in range(8760):
@@ -107,7 +107,7 @@ def get_hourly_power_volume_tariff(month_from_hour, first_day_of_year=4):
             else:                                                           # Nighttime og weekend
                 hourly_power_volume_tariff[t] = summer_night
 
-        return hourly_power_volume_tariff
+    return hourly_power_volume_tariff
 
 
 class ModelBuilder:
@@ -117,20 +117,19 @@ class ModelBuilder:
         self.months = range(12)
         self.month_from_hour = get_month_from_hour_map()
 
+        # Model settings
         self.city = 4  # Oslo, in the survey
         self.num_houses = num_houses
         self.enable_stes = enable_stes
         self.enable_local_market = enable_local_market
-        self.peak_power_tariff = 95.39 * NOK2024_TO_EUR
-        self.peak_power_base = 24.65 * NOK2024_TO_EUR
-        self.el_demand_profiles, self.th_demand_profiles = self._get_load_profiles()
 
+        self.el_demand_profiles, self.th_demand_profiles = self._get_load_profiles()
         self.load_params = self._get_load_params()
         self.pv_params = self._get_pv_params()
         self.stes_params = self._get_stes_params()
         self.house_hp_params = self._get_house_hp_params()
         self.power_market_params = self._get_power_market_params()
-        self.local_market_params = self._get_local_market_tariff()
+        self.local_market_params = self._get_local_market_params()
         self.tariff_params = self._get_tariff_params()
 
     def _get_load_profiles(self):
@@ -152,27 +151,22 @@ class ModelBuilder:
         return {'el_demand': self.el_demand_profiles,
                 'th_demand': self.th_demand_profiles}
 
-    def _get_local_market_tariff(self):
+    def _get_monthly_peak_demand_sums(self):
         """
-        Calculate what the peak demand network tariff should be in case of local market
+        Calculates the sum of peak demand for each month in two ways.
+        The first adds up the individual peak monthly demands per house,
+        while the second aggregates all demands first, and then finds the monthly peak.
+        The first value probably higher than the second, and never lower.
         """
         total_demand = self.el_demand_profiles + self.th_demand_profiles
         total_demand['lec'] = total_demand.sum(axis=1)
         total_demand['month'] = self.month_from_hour
-        monthly_house_demand = total_demand.groupby('month')
-        monthly_house_peaks = monthly_house_demand.max()
+        monthly_peaks = total_demand.groupby('month').max()
 
-        peak_capacity_cost = self.peak_power_tariff
-        peak_cost_base = self.peak_power_base
+        individual_monthly_peak_sum = monthly_peaks.iloc[:, 0:self.num_houses].sum().sum()
+        aggregated_monthly_peak_sum = monthly_peaks.loc[:, 'lec'].sum()
 
-        # Power capacity cost of the houses if no PV or load flexibility is available
-        no_local_market_cost = monthly_house_peaks.iloc[:, 0:self.num_houses] * peak_capacity_cost + peak_cost_base
-        total_peak_cost = no_local_market_cost.sum().sum()
-
-        # Local market peak cost
-        lm_peak_capacity_cost = total_peak_cost / monthly_house_peaks.loc[:, 'lec'].sum()
-
-        return lm_peak_capacity_cost
+        return individual_monthly_peak_sum, aggregated_monthly_peak_sum
 
     def _get_pv_params(self):
         """
@@ -201,10 +195,11 @@ class ModelBuilder:
         """
         # TODO: finn greie parameterverdier
         # TODO: Sørg for at verdier for maks oppladning og utladning er proposjonalt med antall husstander
-        return {'investment_cost': annualize_cost(0),  # [EUR/year] cost of any STES
-                'cap_investment_cost': annualize_cost(14 / 20),  # [EUR/year/kWh] cost of STES capacity
-                'max_installed_capacity': 400000,  # [kWh] of stored heat
-                'heat_retainment': 0.85 ** (1 / (6 * 30 * 24)),  # [1/h] # TODO: Value based on size
+        resu = {'investment_cost': annualize_cost(0),  # [EUR/year] cost of any STES
+                'cap_investment_cost': annualize_cost(15.6 / 20),  # [EUR/year/kWh] cost of STES capacity
+                'min_installed_capacity': 4 * 1e5,  # [kWh] of stored heat
+                'max_installed_capacity': 4 * 1e6,  # [kWh] of stored heat
+                'heat_retainment': 0.60 ** (1 / (6 * 30 * 24)),  # [1/h] #
                 'charge_hp_investment_cost': 0,
                 'charge_eta': 0.99,
                 'charge_cop': 3,
@@ -214,23 +209,55 @@ class ModelBuilder:
                 'discharge_max_qw': 100,  # kWh/h TODO: Base on investment?
                 }
 
+        if not self.enable_stes:
+            resu['investment_cost'] = 0
+            resu['max_installed_capacity'] = 0
+
+        return resu
+
+
     def _get_power_market_params(self):
         return {'power_market_price': SPOT_PRICES.iloc[:, 1]*1e-3,  # [EUR/kWh]
                 'tax': 16.69 * 1e-2,  # 2021 electricity tax [EUR/kWh]
-                'NM': 0,  # Elvia sier 0 nettleie på solgt strøm, men du får ikke noe "negativ" nettleie.
                 }
 
+    def _get_local_market_params(self):
+        return {'export_eta': 0.995}
+
     def _get_tariff_params(self):
+
+        # Values based on today's tariff from Elvia
+
+        # Tariff paid per kW each hour of the year [EUR/kWh]
         volume_network_tariff = get_hourly_power_volume_tariff(self.month_from_hour)
+        # Tariff paid per kW of power sold to the power market. [EUR/kW]
+        selling_volume_tariff = -0.05 * NOK2024_TO_EUR  # TODO: MVA
+
+        # How much is paid per household each month as a base rate [EUR]
+        house_monthly_connection_base = 24.65 * NOK2024_TO_EUR
+        # How much each house pays for its maximum volume each month [EUR/kW]
+        peak_individual_monthly_power_tariff = 95.39 * NOK2024_TO_EUR
+        # How much the neighborhood pays for its max volume each month [EUR/kW]
+        peak_aggregated_monthly_power_tariff = 0
+
         if self.enable_local_market:
-            peak_power_tariff = self._get_local_market_tariff()
-            peak_power_base = 0
-        else:
-            peak_power_tariff = self.peak_power_tariff
-            peak_power_base = self.peak_power_base
-        return {'peak_power_tariff': peak_power_tariff,
-                'peak_power_base': peak_power_base,
-                'volume_network_tariff': volume_network_tariff
+            # With the local market enabled, houses don't pay for their individual peaks
+            # Instead the capacity cost is based on the total volume each hour
+            # The price is scaled up such that, everything else being identical, the DSO gets the same amount
+            individual_peaks, aggregated_peaks = self._get_monthly_peak_demand_sums()
+            expected_capacity_cost = peak_individual_monthly_power_tariff * individual_peaks
+            peak_aggregated_monthly_power_tariff = expected_capacity_cost / aggregated_peaks
+            # Houses no longer pay for capacity individually
+            peak_individual_monthly_power_tariff = 0
+
+            # The DSO no longer pays you for selling to the power market
+            selling_volume_tariff = 0
+
+        return {'volume_network_tariff': volume_network_tariff,
+                'selling_volume_tariff': selling_volume_tariff,
+                'house_monthly_connection_base': house_monthly_connection_base,
+                'peak_individual_monthly_power_tariff': peak_individual_monthly_power_tariff,
+                'peak_aggregated_monthly_power_tariff': peak_aggregated_monthly_power_tariff,
                 }
 
     def create_base_model(self):
@@ -261,6 +288,7 @@ class ModelBuilder:
         set_demand_params(m, self.load_params)
         set_pv_params(m, self.pv_params)
         set_power_market_params(m, self.power_market_params)
+        set_local_market_params(m, self.local_market_params)
         set_stes_params(m, self.stes_params)
         set_house_hp_params(m, self.house_hp_params)
         set_tariff_params(m, self.tariff_params)
@@ -328,9 +356,11 @@ def main():
     stes_case = ['stes', True, False]
     stes_lec_case = ['stes_lec', True, True]
 
-    case = stes_lec_case
+    case = base_case
+    # case = stes_case
+    # case = stes_lec_case
 
-    return lec_scenario(directory=case[0], enable_stes=case[1], enable_local_market=case[2])
+    return lec_scenario(num_houses=5, directory=case[0], enable_stes=case[1], enable_local_market=case[2])
 
 
 if __name__ == "__main__":

@@ -33,13 +33,15 @@ def house_hp_max_heating_rule(m, h, t):
     return m.house_hp_qw[h, t] <= m.house_hp_max_qw
 
 
-def peak_monthly_house_volume_rule(m, h, t, sign):
+def peak_monthly_individual_volume_rule(m, h, t, sign):
+    """ Rule tracking the peak hour of grid volume per household, each month """
     month = m.month_from_hour[t]
     total_consume = m.grid_import[h, t] - m.grid_export[h, t]
     return sign * total_consume <= m.peak_monthly_house_volume[h, month]
 
 
-def peak_monthly_total_volume_rule(m, t, sign):
+def peak_monthly_aggregated_volume_rule(m, t, sign):
+    """ Rule tracking the peak hour of total grid volume, each month """
     month = m.month_from_hour[t]
     total_consume = sum(m.grid_import[h, t] - m.grid_export[h, t] for h in m.h)
     return sign * total_consume <= m.peak_monthly_total_volume[month]
@@ -50,7 +52,7 @@ def pv_curtailment_rule(m, h, t):
 
 
 def local_market_rule(m, t):
-    return sum(m.local_import[h, t] - m.local_export[h, t] for h in m.h) == 0
+    return sum(m.local_import[h, t] - m.local_export[h, t] * m.local_market_export_eta for h in m.h) == 0
 
 
 def stes_discharging_rule(m):
@@ -99,8 +101,8 @@ def lec_constraints(m):
     m.thermal_energy_constraint = pyo.Constraint(m.h_t, rule=thermal_energy_rule)
     m.house_hp_max_heating_constraint = pyo.Constraint(m.h_t, rule=house_hp_max_heating_rule)
 
-    m.peak_monthly_house_volume_constraint = pyo.Constraint(m.h_t, m.sign, rule=peak_monthly_house_volume_rule)
-    m.peak_monthly_total_volume_constraint = pyo.Constraint(m.t, m.sign, rule=peak_monthly_total_volume_rule)
+    m.peak_monthly_house_volume_constraint = pyo.Constraint(m.h_t, m.sign, rule=peak_monthly_individual_volume_rule)
+    m.peak_monthly_total_volume_constraint = pyo.Constraint(m.t, m.sign, rule=peak_monthly_aggregated_volume_rule)
 
     m.local_market_constraint = pyo.Constraint(m.t, rule=local_market_rule)
 

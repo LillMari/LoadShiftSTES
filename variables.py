@@ -35,13 +35,7 @@ def grid_vars(m):
 
 
 def stes_vars(m):
-
-    if m.enable_stes:
-        bounds = (0, m.max_stes_capacity)
-    else:
-        bounds = (0, 0)
-
-    m.stes_capacity = pyo.Var(within=pyo.NonNegativeReals, bounds=bounds)
+    m.stes_capacity = pyo.Var(within=pyo.NonNegativeReals, bounds=(0, m.max_stes_capacity))
     m.stes_soc = pyo.Var(m.t, within=pyo.NonNegativeReals)
 
     # Heating up the STES
