@@ -9,33 +9,40 @@ import pyomo.environ as pyo
 
 
 def total_lec_cost_rule(m):
+    m.objective_terms = {}
+
     # PV investment cost (annualized)
-    pv_investment_cost = m.pv_invest_cost * sum(m.pv_installed_capacity[h] for h in m.h)
+    m.objective_terms['pv_investment_cost'] = m.pv_invest_cost * sum(m.pv_installed_capacity[h] for h in m.h)
 
     # Power market cost
-    power_cost = sum(m.power_market_price[t] * (m.grid_import[h, t] - m.grid_export[h, t]) for h, t in m.h_t)
+    m.objective_terms['power_cost'] = sum(m.power_market_price[t] * (m.grid_import[h, t] - m.grid_export[h, t])
+                                          for h, t in m.h_t)
 
     # Electricity tax cost
-    tax_cost = sum(m.tax * (m.grid_import[h, t] + m.local_import[h, t]) for h, t in m.h_t)
+    # TODO: Fjerne skatt på local_import?
+    m.objective_terms['tax_cost'] = sum(m.tax * (m.grid_import[h, t] + m.local_import[h, t]) for h, t in m.h_t)
 
-    # Volumetric grid charges
-    grid_volume_cost = sum((m.grid_import[h, t] - m.NM * m.grid_export[h, t]
-                            + m.local_import[h, t] - m.NM * m.local_export[h, t]) *
-                           m.volume_network_tariff[t] for h, t in m.h_t)
+    # Volumetric grid tariff on power market import
+    m.objective_terms['grid_import_cost'] = sum(m.grid_import[h, t] * m.volume_network_tariff[t] for h, t in m.h_t)
 
-    # Monthly capacity cost for each household
-    grid_capacity_cost = sum(m.peak_monthly_house_volume[h, month] for h in m.h for month in m.months) * \
-                         m.peak_capacity_tariff + 12 * len(m.h) * m.capacity_tariff_base
+    # Volumetric grid tariff on power market export
+    m.objective_terms['grid_export_cost'] = sum(m.grid_export[h, t] * m.selling_volume_tariff for h, t in m.h_t)
 
-    # TODO: Elvia's -5 øre per kWh exported
+    # Monthly connection base tariff
+    m.objective_terms['connection_cost'] = m.house_monthly_connection_base * len(m.h) * 12
+
+    # Monthly individual capacity tariff
+    m.objective_terms['individual_capacity_tariff'] = sum(m.peak_monthly_house_volume[h, month] for h in m.h for month
+                                                          in m.months) * m.peak_individual_monthly_power_tariff
+
+    # Monthly aggregated capacity tariff
+    m.objective_terms['aggregated_capacity_tariff'] = sum(m.peak_monthly_total_volume[month] for month in m.months) \
+        * m.peak_aggregated_monthly_power_tariff
 
     # STES investment cost
-    if m.enable_stes:
-        stes_investment_cost = m.stes_capacity * m.cap_investment_cost + m.stes_investment_cost
-    else:
-        stes_investment_cost = 0
+    m.objective_terms['stes_investment_cost'] = m.stes_capacity * m.cap_investment_cost + m.stes_investment_cost
 
-    return pv_investment_cost + power_cost + tax_cost + grid_volume_cost + grid_capacity_cost + stes_investment_cost
+    return sum(m.objective_terms.values())
 
 
 def total_cost_objective_function(m):

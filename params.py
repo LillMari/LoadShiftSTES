@@ -67,14 +67,31 @@ def set_power_market_params(m, power_market_params):
                                      within=pyo.Reals)
 
     m.tax = pyo.Param(initialize=power_market_params['tax'], within=pyo.NonNegativeReals)
-    m.NM = pyo.Param(initialize=power_market_params['NM'], within=pyo.NonNegativeReals)  # Net metering coefficient
+
+
+def set_local_market_params(m, local_market_params):
+    m.local_market_export_eta = local_market_params['export_eta']
 
 
 def set_tariff_params(m, tariff_params):
-    m.peak_capacity_tariff = pyo.Param(initialize=tariff_params['peak_power_tariff'],
-                                       within=pyo.NonNegativeReals)  # Capacity-based network tariff [EUR/kW]
-    m.capacity_tariff_base = pyo.Param(initialize=tariff_params['peak_power_base'])
-    m.volume_network_tariff = pyo.Param(m.t, initialize=tariff_params['volume_network_tariff'])
+    # Tariff volume cost per kW, indexed by hour [EUR/kW]
+    m.volume_network_tariff = pyo.Param(m.t, initialize=tariff_params['volume_network_tariff'],
+                                        within=pyo.NonNegativeReals)
+
+    # Tariff volume cost of selling to the power market. Can be negative if selling is incentivized [EUR/kW]
+    m.selling_volume_tariff = pyo.Param(initialize=tariff_params['selling_volume_tariff'])
+
+    # What each house pays monthly [EUR]
+    m.house_monthly_connection_base = pyo.Param(initialize=tariff_params['house_monthly_connection_base'],
+                                                within=pyo.NonNegativeReals)
+
+    # capacity tariff, based on individual peak each month [EUR/kW]
+    m.peak_individual_monthly_power_tariff = pyo.Param(initialize=tariff_params['peak_individual_monthly_power_tariff'],
+                                                       within=pyo.NonNegativeReals)
+
+    # shared capacity tariff, based on aggregated peak each month [EUR/kW]
+    m.peak_aggregated_monthly_power_tariff = pyo.Param(initialize=tariff_params['peak_aggregated_monthly_power_tariff'],
+                                                       within=pyo.NonNegativeReals)
 
 
 def set_house_hp_params(m, house_hp_params):

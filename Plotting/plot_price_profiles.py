@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from basescenario import extract_load_profile
+from modelbuilder import extract_load_profile
 
 
 def plot_one_price_profile(df, scenario, period):
