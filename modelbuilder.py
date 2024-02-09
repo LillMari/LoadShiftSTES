@@ -5,9 +5,12 @@ Created on Thu Jan 05 2024
 @author: Lill Mari Engan
 """
 
-import pyomo.environ as pyo
+import gurobipy as gp
+from gurobipy import GRB
 import pandas as pd
 import numpy as np
+from types import SimpleNamespace
+
 from params import *
 from variables import *
 from constraints import *
@@ -22,7 +25,7 @@ DEMAND = pd.read_csv('Lastprofiler_sigurd/demand.csv')
 ANSWERS = pd.read_csv('Lastprofiler_sigurd/answers.csv')
 PV_GEN_PROFILE = pd.read_csv('PV_profiler/pv_profil_oslo.csv', skiprows=3)['electricity']  # kW/kWp
 EL_TH_RATIO = pd.read_csv('PROFet/el_th_ratio.csv', index_col=0)
-SPOT_PRICES = pd.read_csv('Historic_spot_prices/spot_price.csv')
+SPOT_PRICES = pd.read_csv('Historic_spot_prices/spot_price.csv', index_col=0)
 NOK2024_TO_EUR = 0.087
 
 
@@ -217,7 +220,7 @@ class ModelBuilder:
 
 
     def _get_power_market_params(self):
-        return {'power_market_price': SPOT_PRICES.iloc[:, 1]*1e-3,  # [EUR/kWh]
+        return {'power_market_price': SPOT_PRICES * 1e-3,  # [EUR/kWh]
                 'tax': 16.69 * 1e-2,  # 2021 electricity tax [EUR/kWh]
                 }
 
@@ -261,18 +264,21 @@ class ModelBuilder:
                 }
 
     def create_base_model(self):
-        m = pyo.ConcreteModel()
+        m = SimpleNamespace()
+        m.model = gp.Model("stes_model")
 
         # Sets
-        m.t = pyo.Set(initialize=self.hours)
-        m.months = pyo.Set(initialize=self.months)
-        m.h = pyo.Set(initialize=range(self.num_houses))
-        m.h_t = pyo.Set(initialize=m.h * m.t)
-        m.sign = pyo.Set(initialize=[1, -1])
+        m.t = list(self.hours)
+        m.months = list(self.months)
+        m.h = list(range(self.num_houses))
+        m.sign = [1, -1]
 
-        m.month_from_hour = pyo.Param(m.t, initialize=self.month_from_hour)
-        m.enable_stes = pyo.Param(initialize=self.enable_stes, within=pyo.Boolean)
-        m.enable_local_market = pyo.Param(initialize=self.enable_local_market, within=pyo.Boolean)
+        # Useful conversions
+        m.month_from_hour = list(self.month_from_hour)
+
+        # Configuration
+        m.enable_stes = bool(self.enable_stes)
+        m.enable_local_market = bool(self.enable_local_market)
 
         return m
 
@@ -338,15 +344,14 @@ class ModelBuilder:
 
 
 def lec_scenario(directory, *, num_houses=5, enable_stes, enable_local_market):
-    global lec_model
+    global lec_model, builder
 
     builder = ModelBuilder(num_houses=num_houses,
                            enable_stes=enable_stes,
                            enable_local_market=enable_local_market)
 
-    opt = pyo.SolverFactory('gurobi_direct')
     lec_model = builder.create_lec_model()
-    opt.solve(lec_model, tee=True)
+    lec_model.model.optimize()
 
     write_results_to_csv(lec_model, directory)
 

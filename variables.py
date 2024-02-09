@@ -5,64 +5,49 @@ Created on Thu Jan 09 2024
 @author: Lill Mari Engan
 """
 
-import pyomo.environ as pyo
-import pandas as pd
+import gurobipy as gp
+from gurobipy import GRB
 
 
 def pv_vars(m):
     # How much PV is installed on each house
-    m.pv_installed_capacity = pyo.Var(m.h, within=pyo.NonNegativeReals, bounds=(0, m.max_pv_capacity))  # [kWp]
+    m.pv_installed_capacity = m.model.addVars(m.h, ub=m.max_pv_capacity, name="pv_installed_capacity")
 
 
 def grid_vars(m):
     # Power from and to power market
-    m.grid_import = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh/h]
-    m.grid_export = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh/h]
+    m.grid_import = m.model.addVars(m.t, m.h, name="grid_import")  # [kWh/h]
+    m.grid_export = m.model.addVars(m.t, m.h, name="grid_export")  # [kWh/h]
 
     # Local market
     if m.enable_local_market:
-        bounds = (0, None)
+        ub = float("inf")
     else:
-        bounds = (0, 0)
-    m.local_import = pyo.Var(m.h_t, within=pyo.NonNegativeReals, bounds=bounds)  # [kWh/h]
-    m.local_export = pyo.Var(m.h_t, within=pyo.NonNegativeReals, bounds=bounds)  # [kWh/h]
+        ub = 0
+    m.local_import = m.model.addVars(m.t, m.h, ub=ub, name="local_import")  # [kWh/h]
+    m.local_export = m.model.addVars(m.t, m.h, ub=ub, name="local_export")  # [kWh/h]
 
     # For each household, and each month, its highest hourly electric consumption or production
-    m.peak_monthly_house_volume = pyo.Var(m.h, m.months, within=pyo.NonNegativeReals)  # [kWh/h]
+    m.peak_monthly_house_volume = m.model.addVars(m.h, m.months, name="peak_monthly_house_volume")  # [kWh/h]
 
     # For each month, the highest hourly electric volume into or leaving the neighbourhood
-    m.peak_monthly_total_volume = pyo.Var(m.months, within=pyo.NonNegativeReals)  # [kWh/h]
+    m.peak_monthly_total_volume = m.model.addVars(m.months, name="peak_monthly_total_volume")  # [kWh/h]
 
 
 def stes_vars(m):
-    m.stes_capacity = pyo.Var(within=pyo.NonNegativeReals, bounds=(0, m.max_stes_capacity))
-    m.stes_soc = pyo.Var(m.t, within=pyo.NonNegativeReals)
+    m.stes_capacity = m.model.addVar(ub=m.max_stes_capacity, name="stes_capacity")
+    m.stes_soc = m.model.addVars(m.t, name="stes_soc")
 
     # Heating up the STES
-    m.stes_charge_hp_qw = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh] of heat energy
+    m.stes_charge_hp_qw = m.model.addVars(m.t, m.h, name="stes_charge_hp_qw")  # [kWh] of heat energy
 
     # Heating houses from the STES
-    m.stes_discharge_hp_qw = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh] of heat energy
+    m.stes_discharge_hp_qw = m.model.addVars(m.t, m.h, name="stes_discharge_hp_qw")  # [kWh] of heat energy
 
 
 def heating_vars(m):
     # A 1:1 conversion from electric energy to heat. No upper bound, but least efficient method
-    m.electric_heating = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh] of heat energy
+    m.electric_heating = m.model.addVars(m.t, m.h, name="electric_heating")  # [kWh] of heat energy
 
     # A more efficient way of heating houses, still using electricity.
-    # Upper bounded by house_hp_max_wq
-    m.house_hp_qw = pyo.Var(m.h_t, within=pyo.NonNegativeReals)  # [kWh] of heat energy
-
-
-def dso_vars(m_dso):
-    pass
-    """
-    # additional peak capacity being built [kW]
-    m_dso.grid_capacity_investment = pyo.Var(within=pyo.NonNegativeReals)
-
-    m_dso.grid_power_volume = pyo.Var(m_dso.t, within=pyo.NonNegativeReals)
-
-    # Purely derived variables
-    m_dso.grid_capacity_cost = pyo.Var(within=pyo.NonNegativeReals)
-    m_dso.grid_loss_cost = pyo.Var(within=pyo.NonNegativeReals)
-    """
+    m.house_hp_qw = m.model.addVars(m.t, m.h, ub=m.house_hp_max_qw, name="house_hp_qw")  # [kWh] of heat energy
