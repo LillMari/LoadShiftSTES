@@ -16,8 +16,8 @@ def pv_vars(m):
 
 def grid_vars(m):
     # Power from and to power market
-    m.grid_import = m.model.addVars(m.t, m.h, name="grid_import")  # [kWh/h]
-    m.grid_export = m.model.addVars(m.t, m.h, name="grid_export")  # [kWh/h]
+    m.grid_import = m.model.addVars(m.t, m.h, ub=m.max_grid_import, name="grid_import")  # [kWh/h]
+    m.grid_export = m.model.addVars(m.t, m.h, ub=m.max_grid_export, name="grid_export")  # [kWh/h]
 
     # Local market
     if m.enable_local_market:
@@ -35,7 +35,7 @@ def grid_vars(m):
 
 
 def stes_vars(m):
-    m.stes_capacity = m.model.addVar(ub=m.max_stes_capacity, name="stes_capacity")
+    m.stes_capacity = m.model.addVar(lb=m.min_stes_capacity, ub=m.max_stes_capacity, name="stes_capacity")
     m.stes_soc = m.model.addVars(m.t, name="stes_soc")
 
     # Heating up the STES

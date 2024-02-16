@@ -34,28 +34,32 @@ def set_pv_params(m, pv_params):
 
 def set_power_market_params(m, power_market_params):
     m.power_market_price = param(power_market_params['power_market_price'])
-    m.tax = param(power_market_params['tax'])
+    m.max_grid_import = param(power_market_params['max_grid_import'])
+    m.max_grid_export = param(power_market_params['max_grid_export'])
 
 
 def set_local_market_params(m, local_market_params):
     m.local_market_export_eta = param(local_market_params['export_eta'])
 
 
-def set_tariff_params(m, tariff_params):
-    # Tariff volume cost per kW, indexed by hour [EUR/kW]
-    m.volume_network_tariff = param(tariff_params['volume_network_tariff'])
+def set_tariff_and_tax_params(m, tariff_and_tax_params):
+    # Taxes (Elavgift) paid per unit of energy [EUR/kWh]
+    m.tax = param(tariff_and_tax_params['volume_tax'])
 
-    # Tariff volume cost of selling to the power market. Can be negative if selling is incentivized [EUR/kW]
-    m.selling_volume_tariff = param(tariff_params['selling_volume_tariff'])
+    # Tariff volume cost per kWh, excluding taxes, indexed by hour [EUR/kWh]
+    m.volume_network_tariff = param(tariff_and_tax_params['volume_network_tariff'])
+
+    # Tariff volume cost of selling to the power market. Can be negative if selling is incentivized [EUR/kWh]
+    m.selling_volume_tariff = param(tariff_and_tax_params['selling_volume_tariff'])
 
     # What each house pays monthly [EUR]
-    m.house_monthly_connection_base = param(tariff_params['house_monthly_connection_base'])
+    m.house_monthly_connection_base = param(tariff_and_tax_params['house_monthly_connection_base'])
 
     # capacity tariff, based on individual peak each month [EUR/kW]
-    m.peak_individual_monthly_power_tariff = param(tariff_params['peak_individual_monthly_power_tariff'])
+    m.peak_individual_monthly_power_tariff = param(tariff_and_tax_params['peak_individual_monthly_power_tariff'])
 
     # shared capacity tariff, based on aggregated peak each month [EUR/kW]
-    m.peak_aggregated_monthly_power_tariff = param(tariff_params['peak_aggregated_monthly_power_tariff'])
+    m.peak_aggregated_monthly_power_tariff = param(tariff_and_tax_params['peak_aggregated_monthly_power_tariff'])
 
 
 def set_house_hp_params(m, house_hp_params):
@@ -70,6 +74,7 @@ def set_stes_params(m, stes_params):
     m.cap_investment_cost = param(stes_params['cap_investment_cost'])
 
     m.max_stes_capacity = param(stes_params['max_installed_capacity'])
+    m.min_stes_capacity = param(stes_params['min_installed_capacity'])
 
     m.heat_retainment = param(stes_params['heat_retainment'])
 

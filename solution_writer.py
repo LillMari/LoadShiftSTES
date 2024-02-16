@@ -58,8 +58,10 @@ def write_results_to_csv(m, directory):
         series_from_data(m.stes_capacity, 'stes_capacity', path)
         series_from_data(m.stes_soc, 'stes_soc', path)
 
-        dataframe_from_data(m.t, m.h,
-                            m.stes_charge_hp_qw).sum(axis=1).rename("stes_charge").to_csv(f'{path}/stes_charge.csv')
+        dataframe_from_data(m.t, m.h, m.stes_charge_hp_qw).sum(axis=1)\
+            .rename("stes_charge").to_csv(f'{path}/stes_charge.csv')
+        dataframe_from_data(m.t, m.h, m.stes_discharge_hp_qw).sum(axis=1)\
+            .rename("stes_discharge").to_csv(f'{path}/stes_discharge.csv')
 
     if m.enable_local_market:
         dataframe_from_data(m.t, m.h,
@@ -75,6 +77,15 @@ def write_results_to_csv(m, directory):
 
     total_demand = th_demand + el_demand
     total_demand.rename("total_demand").to_csv(f'{path}/total_demand.csv')
+
+    # sources of heat going to th_demand each hour of the year
+    resistive_heating = dataframe_from_data(m.t, m.h, m.electric_heating).sum(axis=1)
+    house_hp_heating = dataframe_from_data(m.t, m.h, m.house_hp_qw).sum(axis=1)
+    stes_heating = dataframe_from_data(m.t, m.h, m.stes_discharge_hp_qw).sum(axis=1)
+    heating_sources = pd.DataFrame(index=m.t, data={'resistive_heating': resistive_heating,
+                                                    # TODO: 'house_hp_heating': house_hp_heating,
+                                                    'stes_heating': stes_heating})
+    heating_sources.to_csv(f'{path}/heating_sources.csv')
 
     # Extract the value of each linear expression that makes up the total objective function
     series_from_data({name: evaluate(term) for name, term in m.objective_terms.items()}, 'objective_terms', path)

@@ -47,16 +47,18 @@ def local_market_rule(m, t):
     return sum(m.local_import[t, h] - m.local_export[t, h] * m.local_market_export_eta for h in m.h) == 0
 
 
+# STES can only deliver thermal energy during winter due to system inertia
+DISCHARGING_MONTHS = [0, 1, 10, 11]
+
+
 def stes_discharging_rule(m):
-    discharging_months = [0, 1, 10, 11]  # STES can only deliver thermal energy during winter due to system inertia
     return sum(m.stes_discharge_hp_qw[t, h] for h in m.h for t in m.t
-               if m.month_from_hour[t] not in discharging_months) == 0
+               if m.month_from_hour[t] not in DISCHARGING_MONTHS) == 0
 
 
 def stes_charging_rule(m):
-    discharging_months = [0, 1, 10, 11]  # STES can only deliver thermal energy during winter due to system inertia
     return sum(m.stes_charge_hp_qw[t, h] for h in m.h for t in m.t
-               if m.month_from_hour[t] in discharging_months) == 0
+               if m.month_from_hour[t] in DISCHARGING_MONTHS) == 0
 
 
 def stes_max_charging_rule(m, t):

@@ -1,10 +1,7 @@
 ,objective_terms
-pv_investment_cost,1972.1866357872423
-power_cost,1797.6496994208687
-tax_cost,4267.223342506012
-grid_import_cost,918.9056971805642
-grid_export_cost,0.0
-connection_cost,128.67299999999997
-individual_capacity_tariff,0.0
-aggregated_capacity_tariff,1403.2883053585695
-stes_investment_cost,488.81098401399015
+pv_investment_cost,24058.09336544382
+power_market_cost,55179.192569963845
+volume_tax_cost,10687.202200659227
+grid_volume_tariff,20034.21998905716
+capacity_tariff,33674.54553601851
+stes_investment_cost,26304.095774471785
