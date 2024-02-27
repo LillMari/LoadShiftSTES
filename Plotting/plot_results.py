@@ -18,12 +18,15 @@ scenarios = {
     "stes_lec": "../Results/stes_lec"
 }
 
+
 def month_xticks(ax):
     ax.set_xticks(month_hours_cum)
     ax.set_xticklabels(month_names)
 
+
 def energy_ylims(ax):
     ax.set_ylim((-100, 350))
+
 
 def plot_run(name, folder):
     tot_import = pd.read_csv(f'{folder}/grid_import.csv', index_col=0)
