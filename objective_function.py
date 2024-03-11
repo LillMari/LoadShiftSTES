@@ -19,7 +19,7 @@ def total_lec_cost_rule(m):
     m.objective_terms['power_market_cost'] = sum(m.power_market_price[t] * (m.grid_import[t, h] - m.grid_export[t, h])
                                                  for t in m.t for h in m.h)
 
-    # Electricity tax cost
+    # Electricity tax cost # TODO: ikke tax på local market?
     m.objective_terms['volume_tax_cost'] = sum(m.tax[t] * (m.grid_import[t, h] + m.local_import[t, h])
                                                for t in m.t for h in m.h)
 
@@ -36,11 +36,11 @@ def total_lec_cost_rule(m):
 
     # Monthly individual capacity tariff
     individual_capacity_tariff = sum(m.peak_monthly_house_volume[h, month] for h in m.h for month in m.months) \
-        * m.peak_individual_monthly_power_tariff
+                                 * m.peak_individual_monthly_power_tariff
 
     # Monthly aggregated capacity tariff
     aggregated_capacity_tariff = sum(m.peak_monthly_total_volume[month] for month in m.months) \
-        * m.peak_aggregated_monthly_power_tariff
+                                 * m.peak_aggregated_monthly_power_tariff
 
     m.objective_terms['capacity_tariff'] = connection_cost + individual_capacity_tariff + aggregated_capacity_tariff
 

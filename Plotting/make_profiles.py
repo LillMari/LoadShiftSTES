@@ -28,7 +28,7 @@ def plot_demand_profile_year(profile):
     plt.title('Average yearly load profile')
     plt.show()
 
-
+"""
 def plot_demand_profile_day(profile):
     day_profile = profile[day*24: day*24 + 24].reset_index(drop=True)
     plt.figure(figsize=(10, 5))
@@ -36,7 +36,7 @@ def plot_demand_profile_day(profile):
 
     plt.title(f'Average daily profile, day {day}')
     plt.show()
-
+"""
 
 def plot_duration_curve():
     pass
@@ -46,7 +46,7 @@ def main():
     candidates = get_valid_household_ids(4)
     demand_profile = get_demand_profile(candidates)
     plot_demand_profile_year(demand_profile)
-    plot_demand_profile_day(demand_profile)
+    #plot_demand_profile_day(demand_profile)
 
 
 if __name__ == '__main__':

@@ -42,7 +42,8 @@ def get_valid_household_ids(city):
 
     candidates = ANSWERS
     candidates = candidates[candidates['Q_City'] == city]
-    candidates = candidates[candidates['Q28'].isin((1, 3))]
+    candidates = candidates[candidates['Q7'].isin((2, 3))]  # Gjorde ikke strømsparingstiltak
+    candidates = candidates[candidates['Q28'].isin((1, 3))]  # Elektrisk oppvarming av tappevann
     candidates = candidates[candidates['Q27_6'] == 0]  # Oljefyr
     candidates = candidates[candidates['Q27_7'] == 0]  # Fjernvarme
     candidates = candidates[candidates['Q27_5'] == 0]  # Peis
@@ -389,9 +390,9 @@ def lec_scenario(directory, *, num_houses=5, enable_stes, enable_local_market):
 
 
 def main():
-    # lec_scenario(num_houses=100, directory='BaseScenario', enable_stes=False, enable_local_market=False)
+    lec_scenario(num_houses=100, directory='BaseScenario', enable_stes=False, enable_local_market=False)
     # lec_scenario(num_houses=100, directory='stes', enable_stes=True, enable_local_market=False)
-    lec_scenario(num_houses=100, directory='stes_lec', enable_stes=True, enable_local_market=True)
+    # lec_scenario(num_houses=100, directory='stes_lec', enable_stes=True, enable_local_market=True)
 
 
 if __name__ == "__main__":
