@@ -65,5 +65,6 @@ def main():
     ratio_df = pd.DataFrame({'House': house_ratio, 'Apartment': apt_ratio})
     ratio_df.to_csv('el_th_ratio.csv')
 
+
 if __name__ == "__main__":
     main()

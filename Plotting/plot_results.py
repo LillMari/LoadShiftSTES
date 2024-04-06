@@ -25,7 +25,7 @@ def month_xticks(ax):
 
 
 def energy_ylims(ax):
-    ax.set_ylim((-100, 350))
+    ax.set_ylim((-150, 400))
 
 
 def plot_run(name, folder):
@@ -65,13 +65,18 @@ def plot_run(name, folder):
         plt.grid()
         plt.title(f'STES soc, {name}')
         month_xticks(plt.gca())
+
+        stes_volume = pd.read_csv(f'{folder}/stes_temperature.csv', index_col=0)
+        ax2 = plt.gca().twinx()
+        ax2.plot(stes_volume)
+
         plt.tight_layout()
         plt.show()
 
-    if os.path.exists(f'{folder}/stes_charge.csv') and os.path.exists(f'{folder}/stes_discharge.csv'):
-        stes_charge = pd.read_csv(f'{folder}/stes_charge.csv', index_col=0)
-        stes_discharge = pd.read_csv(f'{folder}/stes_discharge.csv', index_col=0)
-        stes_net_energy = stes_charge['stes_charge'] - stes_discharge['stes_discharge']
+    if os.path.exists(f'{folder}/stes_charge_qw.csv') and os.path.exists(f'{folder}/stes_discharge_qc.csv'):
+        stes_charge = pd.read_csv(f'{folder}/stes_charge_qw.csv', index_col=0)
+        stes_discharge = pd.read_csv(f'{folder}/stes_discharge_qc.csv', index_col=0)
+        stes_net_energy = stes_charge['stes_charge_qw'] - stes_discharge['stes_discharge_qc']
         stes_net_energy = np.cumsum(stes_net_energy.values)
 
         plt.figure(figsize=(10, 3))
@@ -87,8 +92,10 @@ def plot_run(name, folder):
 
         sns.lineplot(stes_net_energy)
 
+        loss = 1 - (stes_discharge['stes_discharge_qc'].sum() / stes_charge['stes_charge_qw'].sum())
+
         plt.grid()
-        plt.title(f'STES net energy, {name}')
+        plt.title(f'STES net energy, {name}, total loss={loss*100:.2f}%')
         month_xticks(plt.gca())
         plt.tight_layout()
         plt.show()

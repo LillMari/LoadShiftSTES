@@ -33,16 +33,22 @@ def grid_vars(m):
     # For each month, the highest hourly electric volume into or leaving the neighbourhood
     m.peak_monthly_total_volume = m.model.addVars(m.months, name="peak_monthly_total_volume")  # [kWh/h]
 
+    # Each year, the highest hourly electric volume leaving the neighbourhood
+    m.peak_yearly_total_export_volume = m.model.addVar(name="peak_yearly_total_export_volume")  # [kWh/h]
+
 
 def stes_vars(m):
-    m.stes_capacity = m.model.addVar(lb=m.min_stes_capacity, ub=m.max_stes_capacity, name="stes_capacity")
+    m.stes_volume = m.model.addVar(lb=m.min_stes_volume, ub=m.max_stes_volume, name="stes_volume")
     m.stes_soc = m.model.addVars(m.t, name="stes_soc")
 
-    # Heating up the STES
-    m.stes_charge_hp_qw = m.model.addVars(m.t, m.h, name="stes_charge_hp_qw")  # [kWh] of heat energy
+    m.stes_el = m.model.addVars(m.t, m.h, name="stes_el")
+    m.stes_th = m.model.addVars(m.t, m.h, name="stes_th")
 
-    # Heating houses from the STES
-    m.stes_discharge_hp_qw = m.model.addVars(m.t, m.h, name="stes_discharge_hp_qw")  # [kWh] of heat energy
+    m.hp_max_qw = m.model.addVar(name='hp_max_qw', ub=m.hp_max_qw_possible)  # [kW]
+    m.hp_qw = m.model.addVars(m.t, name="hp_qw")  # [kWh] of heat energy
+    m.hp_direct_qw = m.model.addVars(m.t, name="hp_direct_qw")  # [kWh] of heat energy
+    m.stes_charge_qw = m.model.addVars(m.t, name="stes_charge_qw")  # [kWh] of heat energy
+    m.stes_discharge_qc = m.model.addVars(m.t, name="stes_discharge_qc")  # [kWh] of heat energy
 
 
 def heating_vars(m):
@@ -51,3 +57,4 @@ def heating_vars(m):
 
     # A more efficient way of heating houses, still using electricity.
     m.house_hp_qw = m.model.addVars(m.t, m.h, ub=m.house_hp_max_qw, name="house_hp_qw")  # [kWh] of heat energy
+    m.house_hp_installed_capacity = m.model.addVars(m.h, ub=m.house_hp_max_qw, name="house_hp_installed_capacity")

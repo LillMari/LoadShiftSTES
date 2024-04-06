@@ -20,6 +20,7 @@ def plot_price_profiles(df, scenarios, periods):
             profile = plot_one_price_profile(df, scenario, period)
             sns.lineplot(profile, x='Hour', y='Price_EURperMWh',
                          hue='Season') #, label=(period + scenario)) # TODO: endre legend
+            plt.title(f'{scenario}')
     plt.show()
 
 
@@ -33,7 +34,7 @@ def plot_PV_price():
 
 
 def price_plot():
-    price_profiles = pd.read_csv('../Framtidspriser/filtrerte_priser.csv')
+    price_profiles = pd.read_csv('Framtidspriser/filtrerte_priser.csv')
     mean_price = price_profiles[((~price_profiles['Season'].str.contains('peak')) &
                                  (price_profiles['Scenario'] != 'scenario3'))]
     mean_price = mean_price.groupby('Hour')['Price_EURperMWh'].mean()
@@ -83,6 +84,23 @@ def plot_el_th_demand_profile():
     return el_demand, th_demand
 
 
-if __name__ == '__main__':
+def plot_historic_spot_price():
+    hist_spot_price = pd.read_csv("Historic_spot_prices/spot_price_2019.csv", index_col=0) * 1e-3
+    plt.figure()
+    plt.plot(hist_spot_price.iloc[:, 0])
+    plt.grid()
+    plt.title("Historic spot price")
+    month_xticks(plt.gca())
+    plt.ylabel('Spot price [€/kWh]')
+    plt.show()
 
-    el_demand, th_demand = plot_el_th_demand_profile()
+
+if __name__ == '__main__':
+    plot_historic_spot_price()
+    # df = pd.read_csv('Framtidspriser/results_output_Operational.csv')
+    # df = df[df['Node'] == 'NO1']
+    # scenarios = [f'scenario{i+1}' for i in range(10)]
+    # periods = ['2030-2035']
+    # for scenario in scenarios:
+    #     plot_price_profiles(df, scenario, periods)
+

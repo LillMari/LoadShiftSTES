@@ -61,30 +61,44 @@ def set_tariff_and_tax_params(m, tariff_and_tax_params):
     # shared capacity tariff, based on aggregated peak each month [EUR/kW]
     m.peak_aggregated_monthly_power_tariff = param(tariff_and_tax_params['peak_aggregated_monthly_power_tariff'])
 
+    # shared capacity export tariff, based on aggregated peak each year [EUR/kW]
+    m.peak_aggregated_yearly_export_tariff = param(tariff_and_tax_params['peak_aggregated_yearly_export_tariff'])
+
 
 def set_house_hp_params(m, house_hp_params):
     m.house_hp_cop = param(house_hp_params['cop'])
     # Max heating energy delivered by a house's private heatpump
     m.house_hp_max_qw = param(house_hp_params['max_qw'])
+    m.house_hp_investment_cost = param(house_hp_params['investment_cost'])
 
 
 def set_stes_params(m, stes_params):
     # Seasonal thermal energy storage
     m.stes_investment_cost = param(stes_params['investment_cost'])
-    m.cap_investment_cost = param(stes_params['cap_investment_cost'])
+    m.stes_volume_investment_cost = param(stes_params['volume_investment_cost'])
 
-    m.max_stes_capacity = param(stes_params['max_installed_capacity'])
-    m.min_stes_capacity = param(stes_params['min_installed_capacity'])
+    m.max_stes_volume = param(stes_params['max_installed_volume'])
+    m.min_stes_volume = param(stes_params['min_installed_volume'])
 
+    m.ground_base_temperature = param(stes_params['ground_base_temperature'])
+    m.volumetric_heat_capacity = param(stes_params['volumetric_heat_capacity'])
     m.heat_retainment = param(stes_params['heat_retainment'])
 
-    m.stes_charge_eta = param(stes_params['charge_eta'])
-    m.stes_charge_hp_cop = param(stes_params['charge_cop'])
-    m.stes_charge_hp_max_qw = param(stes_params['charge_max_qw'])
+    m.max_stes_temperature = param(stes_params['max_temperature'])
+    m.min_stes_temperature = param(stes_params['min_temperature'])
 
+    m.charge_threshold = param(stes_params['charge_threshold'])
+    m.discharge_threshold = param(stes_params['discharge_threshold'])
+    m.max_temperature_increase = param(stes_params['max_temperature_increase'])
+    m.max_temperature_decrease = param(stes_params['max_temperature_decrease'])
+
+    m.stes_hp_investment_cost = param(stes_params['hp_investment_cost'])
+    m.stes_hp_cop = param(stes_params['hp_cop'])
+    m.hp_max_qw_possible = param(stes_params['hp_max_qw_possible'])
+
+    m.stes_charge_eta = param(stes_params['charge_eta'])
     m.stes_discharge_eta = param(stes_params['discharge_eta'])
-    m.stes_discharge_hp_cop = param(stes_params['discharge_cop'])
-    m.stes_discharge_hp_max_qw = param(stes_params['discharge_max_qw'])
+    m.stes_discharge_cop = param(stes_params['discharge_cop'])
 
 
 def set_dso_params(m_dso, dso_params, net_use_params):
