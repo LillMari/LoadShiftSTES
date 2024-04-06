@@ -23,15 +23,15 @@ Loading data
 # prices = pd.read_csv('Framtidspriser/results_output_Operational.csv')
 DEMAND = pd.read_csv('Lastprofiler_sigurd/demand.csv')
 ANSWERS = pd.read_csv('Lastprofiler_sigurd/answers.csv')
-PV_GEN_PROFILE = pd.read_csv('PV_profiler/pv_profil_oslo.csv', skiprows=3)['electricity']  # kW/kWp
+PV_GEN_PROFILE = pd.read_csv('PV_profiler/pv_profil_oslo_2014.csv', skiprows=3)['electricity']  # kW/kWp
 EL_TH_RATIO = pd.read_csv('PROFet/el_th_ratio.csv', index_col=0)
 SPOT_PRICES = pd.read_csv('Historic_spot_prices/spot_price.csv', index_col=0)  # [EUR/MWh]
 NOK2024_TO_EUR = 0.087
 
 
-def annualize_cost(cost, lifetime=30, interest=0.05):
+def annualize_cost(cost, lifetime=30, interest=0.04, rounding=0):
     annuity_factor = (1 - 1 / (1 + interest) ** lifetime) / interest
-    return cost / annuity_factor
+    return round(cost / annuity_factor, rounding)
 
 
 def get_valid_household_ids(city):
@@ -135,7 +135,7 @@ def get_volume_taxes(month_from_hour):
 
 
 class ModelBuilder:
-    def __init__(self, *, num_houses, enable_stes, enable_local_market, seed=1234):
+    def __init__(self, *, num_houses, enable_house_hp, enable_stes, enable_local_market, seed=1234):
         self.rng = np.random.default_rng(seed=seed)
         self.hours = range(8760)
         self.months = range(12)
@@ -144,6 +144,7 @@ class ModelBuilder:
         # Model settings
         self.city = 4  # Oslo, in the survey
         self.num_houses = num_houses
+        self.enable_house_hp = enable_house_hp
         self.enable_stes = enable_stes
         self.enable_local_market = enable_local_market
 
@@ -197,9 +198,9 @@ class ModelBuilder:
         pv_invest_cost [EUR/kWp]
         :return:
         """
-        pv_invest_cost = annualize_cost(21000 * NOK2024_TO_EUR)
-        if self.enable_stes:
-            pv_invest_cost = annualize_cost(18000 * NOK2024_TO_EUR)
+        pv_invest_cost = annualize_cost(13000 * NOK2024_TO_EUR)
+        # if self.enable_stes:
+            # pv_invest_cost = annualize_cost(7000 * NOK2024_TO_EUR)
 
         return {'pv_production': PV_GEN_PROFILE,
                 # Specific investment cost based on 2020 prices [€/kWp]
@@ -212,37 +213,51 @@ class ModelBuilder:
         """
         :return:
         """
-        # TODO: finn verdier
-        return {'cop': 3,
-                'max_qw': 0  # [kWh/h]
-                }
+        # TODO: finn verdier, og ta 25000NOK for en varmepumpe
+        result = {'cop': 3,
+                  'max_qw': 10,  # [kWh/h]
+                  'investment_cost': annualize_cost(25000/4 * NOK2024_TO_EUR, lifetime=20)}
+        if not self.enable_house_hp:
+            result['max_qw'] = 0
+            result['investment_cost'] = 0
+        return result
 
     def _get_stes_params(self):
         """
         :return:
         """
-        # TODO: Ta med investering i pumpe og størrelse
-        resu = {'investment_cost': annualize_cost(195000),  # [EUR/year] cost of any STES
-                'cap_investment_cost': annualize_cost(8.9 / 20),  # [EUR/year/kWh] cost of STES capacity
-                'min_installed_capacity': 4 * 1e5,  # [kWh] of stored heat
-                'max_installed_capacity': 1.3 * 1e6,  # [kWh] of stored heat
-                'heat_retainment': 0.60 ** (1 / (6 * 30 * 24)),  # [1/h] #
-                'charge_hp_investment_cost': 0,
+        resu = {'investment_cost': annualize_cost(195000) + 195000*.1,  # [EUR/year] cost of any STES
+                'volume_investment_cost': annualize_cost(8.9) + 8.9*.1,  # [EUR/year/m3] cost of STES volume
+                'min_installed_volume': 2 * 1e4,  # [m3] ground
+                'max_installed_volume': 7 * 1e4,  # [m3] ground
+                'ground_base_temperature': 10,  # [deg C] the temperature at which no losses occur
+                'volumetric_heat_capacity': 0.6,  # [kWh / m3K] in ground
+                'heat_retainment': 0.60 ** (1 / (12 * 30 * 24)),  # [1/h] # TODO: skal være 40-60%
+                'max_temperature': 75,  # [deg C]
+                'min_temperature': 30,  # [deg C]
+                'charge_threshold': 50,  # [deg C]
+                'discharge_threshold': 40,  # [deg C]
+                'max_temperature_increase': 80 / 4380,  # [K/h]
+                'max_temperature_decrease': 80 / 4380,  # [K/h]
+
+                # heat pump parameters
+                'hp_investment_cost': annualize_cost(400, lifetime=15),  # [EUR/kW of Qw]
+                'hp_cop': 3,
+                'hp_max_qw_possible': 300,  # [kW]
+
+                # In and out of STES parameters
                 'charge_eta': 0.99,
-                'charge_cop': 3,
-                'charge_max_qw': 250,  # kWh/h TODO: Base on investment?
                 'discharge_eta': 0.99,
                 'discharge_cop': 100,
-                'discharge_max_qw': 250,  # kWh/h TODO: Base on investment?
                 }
 
         if not self.enable_stes:
             resu['investment_cost'] = 0
-            resu['min_installed_capacity'] = 0
-            resu['max_installed_capacity'] = 0
+            resu['min_installed_volume'] = 0
+            resu['max_installed_volume'] = 0
+            resu['hp_max_qw_possible'] = 0
 
         return resu
-
 
     def _get_power_market_params(self):
         return {
@@ -269,11 +284,18 @@ class ModelBuilder:
         selling_volume_tariff = -0.05 * NOK2024_TO_EUR  # TODO: MVA
 
         # How much is paid per household each month as a base rate [EUR]
-        house_monthly_connection_base = 24.65 * NOK2024_TO_EUR
+        house_monthly_connection_base = 95.39 * NOK2024_TO_EUR
         # How much each house pays for its maximum volume each month [EUR/kW]
-        peak_individual_monthly_power_tariff = 95.39 * NOK2024_TO_EUR
+        peak_individual_monthly_power_tariff = 24.65 * NOK2024_TO_EUR
         # How much the neighborhood pays for its max volume each month [EUR/kW]
         peak_aggregated_monthly_power_tariff = 0
+        # How much the neighborhood pays for its max volume export each year [EUR/kW]
+        peak_aggregated_yearly_export_tariff = 0
+
+        if self.enable_stes:
+            peak_aggregated_yearly_export_tariff = 463 * NOK2024_TO_EUR
+            # Houses no longer pay for capacity individually
+            peak_individual_monthly_power_tariff = 0
 
         if self.enable_local_market:
             # With the local market enabled, houses don't pay for their individual peaks
@@ -294,7 +316,7 @@ class ModelBuilder:
                 'house_monthly_connection_base': house_monthly_connection_base,
                 'peak_individual_monthly_power_tariff': peak_individual_monthly_power_tariff,
                 'peak_aggregated_monthly_power_tariff': peak_aggregated_monthly_power_tariff,
-                }
+                'peak_aggregated_yearly_export_tariff': peak_aggregated_yearly_export_tariff}
 
     def create_base_model(self):
         m = SimpleNamespace()
@@ -310,6 +332,7 @@ class ModelBuilder:
         m.month_from_hour = list(self.month_from_hour)
 
         # Configuration
+        m.enable_house_hp = bool(self.enable_house_hp)
         m.enable_stes = bool(self.enable_stes)
         m.enable_local_market = bool(self.enable_local_market)
 
@@ -346,53 +369,26 @@ class ModelBuilder:
 
         return m
 
-    def create_dso_model(self, net_use_params):
-        """
-        Creates a linear model for optimizing power grid investment for the DSO.
-        Takes in net usage for each household, and calculates losses and investment cost.
-        Results in tariffs that cover transmission losses and investment cost.
-        :param net_use_params: a dict containing net import and export data from a previous solve
-         - 'grid_el_import' = (h,t) indexed grid power import per house, per hour [kWh]
-         - 'grid_export' = (h,t) indexed grid power export per house, per hour [kWh]
-        :return:
 
-        m_dso = self.create_base_model()
-
-        # Parameters
-        set_dso_params(m_dso, self.dso_params, net_use_params)
-        set_power_market_params(m_dso, self.power_market_params)
-
-        # Variables
-        dso_vars(m_dso)
-
-        # Constraints
-        dso_constraints(m_dso)
-
-        # Objective function
-        dso_objective_function(m_dso)
-
-        return m_dso
-        """
-        pass
-
-
-def lec_scenario(directory, *, num_houses=5, enable_stes, enable_local_market):
+def lec_scenario(directory, *, num_houses=5, enable_house_hp, enable_stes, enable_local_market):
     global lec_model, builder
 
     builder = ModelBuilder(num_houses=num_houses,
+                           enable_house_hp=enable_house_hp,
                            enable_stes=enable_stes,
                            enable_local_market=enable_local_market)
 
     lec_model = builder.create_lec_model()
-    lec_model.model.optimize()
+    lec_model.model.optimize()  # Barrier method
 
     write_results_to_csv(lec_model, directory)
 
 
 def main():
-    lec_scenario(num_houses=100, directory='BaseScenario', enable_stes=False, enable_local_market=False)
-    # lec_scenario(num_houses=100, directory='stes', enable_stes=True, enable_local_market=False)
-    # lec_scenario(num_houses=100, directory='stes_lec', enable_stes=True, enable_local_market=True)
+    lec_scenario(num_houses=200, directory='BaseScenario', enable_house_hp=False, enable_stes=False, enable_local_market=False)
+    # lec_scenario(num_houses=100, directory='stes', enable_house_hp=False, enable_stes=True, enable_local_market=False)
+    # lec_scenario(num_houses=100, directory='stes_lec', enable_house_hp=False, enable_stes=True, enable_local_market=True)
+    # lec_scenario(num_houses=100, directory='houseHP', enable_house_hp=True, enable_stes=False, enable_local_market=False)
 
 
 if __name__ == "__main__":

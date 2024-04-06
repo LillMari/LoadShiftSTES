@@ -16,6 +16,7 @@ def evaluate(data):
 
 
 def series_from_data(data, name, folder=None):
+    data = evaluate(data)
     if isinstance(data, gp.tupledict):
         s = pd.Series(index=data.keys(), data=(evaluate(x) for x in data.values()), name=name)
     elif isinstance(data, np.ndarray) or isinstance(data, list):
@@ -55,13 +56,17 @@ def write_results_to_csv(m, directory):
     dataframe_from_data(m.t, m.h, m.grid_export).sum(axis=1).rename("grid_export").to_csv(f'{path}/grid_export.csv')
 
     if m.enable_stes:
-        series_from_data(m.stes_capacity, 'stes_capacity', path)
-        series_from_data(m.stes_soc, 'stes_soc', path)
+        stes_volume = series_from_data(m.stes_volume, 'stes_volume', path)
+        stes_soc = series_from_data(m.stes_soc, 'stes_soc', path)
+        # TODO: Replace
+        stes_temperature = stes_soc / stes_volume[0] / m.volumetric_heat_capacity + m.ground_base_temperature
+        stes_temperature.rename("stes_temperature").to_csv(f'{path}/stes_temperature.csv')
 
-        dataframe_from_data(m.t, m.h, m.stes_charge_hp_qw).sum(axis=1)\
-            .rename("stes_charge").to_csv(f'{path}/stes_charge.csv')
-        dataframe_from_data(m.t, m.h, m.stes_discharge_hp_qw).sum(axis=1)\
-            .rename("stes_discharge").to_csv(f'{path}/stes_discharge.csv')
+
+        series_from_data(m.stes_charge_qw, "stes_charge_qw", path)
+        series_from_data(m.stes_discharge_qc, "stes_discharge_qc", path)
+        series_from_data(m.hp_direct_qw, "hp_direct_qw", path)
+        series_from_data(m.hp_max_qw, "hp_max_qw", path)
 
     if m.enable_local_market:
         dataframe_from_data(m.t, m.h,
@@ -81,10 +86,16 @@ def write_results_to_csv(m, directory):
     # sources of heat going to th_demand each hour of the year
     resistive_heating = dataframe_from_data(m.t, m.h, m.electric_heating).sum(axis=1)
     house_hp_heating = dataframe_from_data(m.t, m.h, m.house_hp_qw).sum(axis=1)
-    stes_heating = dataframe_from_data(m.t, m.h, m.stes_discharge_hp_qw).sum(axis=1)
-    heating_sources = pd.DataFrame(index=m.t, data={'resistive_heating': resistive_heating,
-                                                    # TODO: 'house_hp_heating': house_hp_heating,
-                                                    'stes_heating': stes_heating})
+    stes_discharge_qc = series_from_data(m.stes_discharge_qc, "stes_discharge_qc")
+    stes_discharge_qw = stes_discharge_qc / (1 - 1/m.stes_discharge_cop)
+    stes_hp_direct_qw = series_from_data(m.hp_direct_qw, 'hp_direct_qw')
+    heating_data = {'resistive_heating': resistive_heating}
+    if m.enable_stes:
+        heating_data['stes_heating'] = stes_discharge_qw
+        heating_data['stes_hp_direct'] = stes_hp_direct_qw
+    if m.enable_house_hp:
+        heating_data['house_hp_heating'] = house_hp_heating
+    heating_sources = pd.DataFrame(index=m.t, data=heating_data)
     heating_sources.to_csv(f'{path}/heating_sources.csv')
 
     # Extract the value of each linear expression that makes up the total objective function

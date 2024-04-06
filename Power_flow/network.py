@@ -1,7 +1,9 @@
 import pandas as pd
-import pandapower as pp
 import numpy as np
+import os
+import shutil
 
+import pandapower as pp
 from pandapower.timeseries import DFData, OutputWriter
 from pandapower.timeseries.run_time_series import run_timeseries
 from pandapower.control import ConstControl
@@ -45,6 +47,10 @@ class Network:
         self.Ps, self.Qs = self._extract_loads(load_file)
 
         self._add_lec(lec_load_profiles)
+
+        self.results = {'P_max': self._find_max_active_power(),
+                        'S_max': self._find_max_apparent_power(),
+                        'total_load': self._total_load()}
 
     def _extract_loads(self, load_file):
         """
@@ -90,6 +96,18 @@ class Network:
 
             self.grid.load.loc[len(self.grid.load)] = new_load
 
+    def _find_max_active_power(self):
+        return max(self.Ps.sum(axis=1))
+
+    def _find_max_apparent_power(self):
+        s = np.sqrt(self.Ps ** 2 + self.Qs ** 2)
+        return max(s.sum(axis=1))
+
+    def _total_load(self):
+        s = np.sqrt(self.Ps ** 2 + self.Qs ** 2)
+        s_tot = s.sum(axis=1).sum(axis=0)
+        return s_tot
+
     def _create_controllers(self):
         """
         Combines the time series for the loads.
@@ -119,20 +137,80 @@ class Network:
         ow.log_variable('res_line', 'ql_mvar')
         return ow
 
+    def _get_line_summaries(
+            self, active_line_losses, reactive_line_losses):
+        apparent_line_losses = active_line_losses.combine(reactive_line_losses, func=np.hypot)
+
+        # Turn the results into a three-column dataframe, with one row per hour
+        return pd.DataFrame({
+            'active_line_losses_mw': active_line_losses.sum(axis=1),
+            'reactive_line_losses_mvar': reactive_line_losses.sum(axis=1),
+            'apparent_line_losses_mva': apparent_line_losses.sum(axis=1)
+        })
+
+    def _get_bus_summaries(self, voltages):
+        """
+        Summarizes a dataframe of voltages after running a power flow time series on the net.
+
+        :param voltages: df where rows are hours, and columns are bus names
+
+        :returns: a dataframe with one row per bus, and columns:
+        'ov_hours': How many hours the node experienced overvoltage
+        'max_voltage': The highest voltage seen by the node
+        'min_voltage': The lowest voltage seen by the node
+        """
+
+        # To begin with, the dataframe is indexed by bus index
+        overvoltages_per_bus = pd.DataFrame(index=self.grid.bus['name'])
+        overvoltages_per_bus['ov_hours'] = 0
+        overvoltages_per_bus['max_voltage'] = voltages.max()
+        overvoltages_per_bus['min_voltage'] = voltages.min()
+
+        for bus_name, bus_max_voltage in self.grid.bus[['name', 'max_vm_pu']].values:
+            overvoltage = voltages.loc[:, bus_name] > bus_max_voltage
+            overvoltages_per_bus.loc[bus_name, 'ov_hours'] = overvoltage.sum()
+
+        return overvoltages_per_bus
+
     def run_time_series(self, time_steps):
         """
-        Runs a year of powerflow analysis, hour by hour.
-
-        Takes a PV generation time series as a dataframe.
+        Runs a year of power flow analysis, hour by hour.
         Each column must be named after a bus, and have 8760 rows.
-        Only buses with loads can have pv generation
 
-        :param time_steps: a range() of the hours of the year to run powerflow on
+        :param time_steps: a range() of the hours of the year to run power flow on
 
         :returns: a dictionary of different result structures
         """
         self._create_controllers()
         ow = self._create_output_writer(time_steps)
         run_timeseries(self.grid, time_steps)
+
+        # Create bus summaries
+        voltages = pd.DataFrame(ow.np_results['res_bus.vm_pu'], columns=self.grid.bus['name'])
+        bus_summaries = self._get_bus_summaries(voltages)
+
+        active_line_losses = pd.DataFrame(ow.np_results['res_line.pl_mw'])
+        reactive_line_losses = pd.DataFrame(ow.np_results['res_line.ql_mvar'])
+        line_summaries = self._get_line_summaries(active_line_losses, reactive_line_losses)
+
+        self.results['bus_summaries'] = bus_summaries
+        self.results['line_summaries'] = line_summaries
+
+    def write_results_to_folder(self, path):
+        """
+        Writes run summaries to desired folder.
+        """
+        if os.path.exists(path):
+            shutil.rmtree(path)
+        os.mkdir(path)
+        for name, value in self.results.items():
+            file_name = os.path.join(path, name + ".csv")
+            if isinstance(value, pd.DataFrame):
+                value.to_csv(file_name)
+            elif isinstance(value, float):
+                value = pd.Series(value, name=name)
+                value.to_csv(file_name)
+            else:
+                raise ValueError(f"Not sure how to save {name} of type {type(value)}")
 
 
