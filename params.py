@@ -59,10 +59,10 @@ def set_tariff_and_tax_params(m, tariff_and_tax_params):
     m.peak_individual_monthly_power_tariff = param(tariff_and_tax_params['peak_individual_monthly_power_tariff'])
 
     # shared capacity tariff, based on aggregated peak each month [EUR/kW]
-    m.peak_aggregated_monthly_power_tariff = param(tariff_and_tax_params['peak_aggregated_monthly_power_tariff'])
+    m.peak_aggregated_monthly_import_tariff = param(tariff_and_tax_params['peak_aggregated_monthly_import_tariff'])
 
     # shared capacity export tariff, based on aggregated peak each year [EUR/kW]
-    m.peak_aggregated_yearly_export_tariff = param(tariff_and_tax_params['peak_aggregated_yearly_export_tariff'])
+    m.peak_aggregated_monthly_export_tariff = param(tariff_and_tax_params['peak_aggregated_monthly_export_tariff'])
 
 
 def set_house_hp_params(m, house_hp_params):

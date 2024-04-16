@@ -4,58 +4,16 @@ import seaborn as sns
 from modelbuilder import extract_load_profile
 
 
-def plot_one_price_profile(df, scenario, period):
-    seasons = ['winter', 'spring', 'summer', 'fall']
-    profile = df[((df['Scenario'] == scenario) &
-                  (df['Period'] == period) &
-                  (~df['Season'].str.contains('peak')))]
-
-    return profile
-
-
-def plot_price_profiles(df, scenarios, periods):
-    plt.figure()
-    for scenario in scenarios:
-        for period in periods:
-            profile = plot_one_price_profile(df, scenario, period)
-            sns.lineplot(profile, x='Hour', y='Price_EURperMWh',
-                         hue='Season') #, label=(period + scenario)) # TODO: endre legend
-            plt.title(f'{scenario}')
-    plt.show()
-
-
-def plot_PV_price():
-    installed_cap = [3.3, 4.4, 5.5, 7.7]
-    price = [56900, 74500, 96900, 135220]
-    plt.figure()
-    plt.plot(installed_cap, price)
-    plt.title('Solcellespesialisten, priser')
-    plt.show()
-
-
-def price_plot():
-    price_profiles = pd.read_csv('Framtidspriser/filtrerte_priser.csv')
-    mean_price = price_profiles[((~price_profiles['Season'].str.contains('peak')) &
-                                 (price_profiles['Scenario'] != 'scenario3'))]
-    mean_price = mean_price.groupby('Hour')['Price_EURperMWh'].mean()
-    sns.lineplot(data=mean_price)
-
-    scenarios = price_profiles['Scenario'].unique()
-    periods = price_profiles['Period'].unique()
-
-    plot_price_profiles(price_profiles, scenarios[3:10], periods[3:4])
-
-    plot_PV_price()
-
-
 months = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 month_hours = [m*24 for m in months]
 month_hours_cum = [sum(month_hours[:x]) for x in range(12)]
 month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+
 def month_xticks(ax):
     ax.set_xticks(month_hours_cum)
     ax.set_xticklabels(month_names)
+
 
 def plot_el_th_demand_profile():
     el_demand, th_demand = extract_load_profile(1743)
@@ -84,23 +42,29 @@ def plot_el_th_demand_profile():
     return el_demand, th_demand
 
 
-def plot_historic_spot_price():
-    hist_spot_price = pd.read_csv("Historic_spot_prices/spot_price_2019.csv", index_col=0) * 1e-3
-    plt.figure()
+def plot_spot_price(filename):
+    hist_spot_price = pd.read_csv(filename, index_col=0) * 1e-3
+    plt.figure(figsize=(8, 4))
     plt.plot(hist_spot_price.iloc[:, 0])
     plt.grid()
-    plt.title("Historic spot price")
+    plt.title(f"Historic spot price {filename}")
     month_xticks(plt.gca())
     plt.ylabel('Spot price [€/kWh]')
     plt.show()
 
+    # Also plot a week
+    # week = 10
+    # plt.figure()
+    # plt.plot(hist_spot_price.iloc[week*24*7:(week+1)*24*7, 0])
+    # plt.ylabel('Spot price [€/kWh]')
+    # plt.title(f"Historic spot price, week {week+1}")
+    # plt.grid()
+    # plt.show()
+
 
 if __name__ == '__main__':
-    plot_historic_spot_price()
-    # df = pd.read_csv('Framtidspriser/results_output_Operational.csv')
-    # df = df[df['Node'] == 'NO1']
-    # scenarios = [f'scenario{i+1}' for i in range(10)]
-    # periods = ['2030-2035']
-    # for scenario in scenarios:
-    #     plot_price_profiles(df, scenario, periods)
+    plot_spot_price("Historic_spot_prices/spot_price_2019.csv")
+    plot_spot_price("Historic_spot_prices/spot_price.csv")
+    plot_spot_price("Framtidspriser/future_spot_price.csv")
+    plot_spot_price("Framtidspriser/future_spot_price_NVE.csv")
 

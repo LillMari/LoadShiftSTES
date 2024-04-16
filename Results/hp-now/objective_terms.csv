@@ -1,0 +1,12 @@
+,objective_terms
+power_market_cost,18549.154121465308
+volume_tax_cost,7549.771162231324
+grid_volume_tariff,13964.472179235336
+connection_cost,9958.716
+individual_capacity_tariff,9630.871713845716
+aggregated_capacity_export_tariff,0.0
+aggregated_capacity_import_tariff,0.0
+pv_investment_cost,15918.308685481994
+house_hp_investment_cost,10235.54513556209
+stes_investment_cost,0.0
+hp_investment_cost,0.0

@@ -11,7 +11,8 @@ stes_cost_volume = {'DLSC': [542203.9, 34000],
                     'Ontario': [320791.05, 19500],
                     'Crailsheim': [520000, 37500],
                     'Neckarsulm-1': [450000, 20000],
-                    'Neckarsulm-2': [749000, 63000],  # TODO: sjekk volum for phase 1 og phase 2
+                    'Neckarsulm-2': [749000, 63000],
+                    'Andalucia': [154826.1, 18000],
                     }
 # Based on simulations with very low borehole cost
 # 'Anneberg': [165414.83, 60000],
@@ -27,13 +28,15 @@ lr.fit(x, y)
 
 m = lr.coef_[0][0]  # STES capacity cost
 b = lr.intercept_[0]  # STES investment cost
-fig, ax = plt.subplots()
-sns.regplot(stes_cost, x='Ground volume [m3]', y='Investment cost [€]', ax=ax)
-fig.suptitle("BTES investment cost vs ground volume")
-ax.text(20000, 800000, f'm={m:.4f}\nb={b:.2f}')
+fig, ax = plt.subplots(figsize=(6, 4))
+sns.regplot(stes_cost, x=f'Ground volume [m3]', y='Investment cost [€]', ax=ax)
+ax.set_xlabel(f'Ground volume [m$^3$]')
+ax.lines[0].set_label(f'{m:.1f}' + r'$\frac{€}{m^3}$ x +' + f'{b/1000:.0f}' + r'$\cdot 10^3 €$')
+ax.legend(loc='upper left')
 ax2 = ax.twiny()
 volume_to_energy = lambda v: 20 * v
 ax2.set_xlim(map(volume_to_energy, ax.get_xlim()))
 ax2.set_xlabel("Estimated ground heat capacity [kWh]")
 fig.tight_layout()
+plt.savefig('method_figures/BTES_investment_cost.pdf')
 plt.show()

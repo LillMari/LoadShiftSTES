@@ -5,6 +5,8 @@ import pandas as pd
 import seaborn as sns
 
 
+NOK2024_TO_EUR = 0.087
+
 def month_xticks(ax):
     months = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     month_hours = [m * 24 for m in months]
@@ -98,8 +100,30 @@ def plot_daily_load_profile(save=False):
     plt.show()
 
 
+def plot_mean_2030_prices(save=False):
+    price_profile = pd.read_csv('plotting_data/NVE_fremtid_ukesnitt.csv')
+
+    price_profile.loc[:, 'Mean_EUR'] = price_profile['Mean'] * NOK2024_TO_EUR
+    price_profile.loc[:, 'Std_dev_EUR'] = price_profile['Std dev'] * NOK2024_TO_EUR
+    price2030 = price_profile[price_profile['Model year'] == 2030]
+    lower = price2030['Mean_EUR'] - price2030['Std_dev_EUR']
+    upper = price2030['Mean_EUR'] + price2030['Std_dev_EUR']
+
+    plt.figure(figsize=(8, 4))
+    sns.lineplot(data=price2030, x='Week', y='Mean_EUR', label='Weekly mean electricity price')
+
+    plt.gca().fill_between(price2030['Week'], lower, upper, alpha=0.2, label='Weekly price variation')
+    plt.margins(x=0)
+    plt.ylabel('Electricity price [cents/kWh]')
+    plt.legend(loc='lower right')
+    if save:
+        plt.savefig('theory_figures/weekly_electricity_price_2030.pdf')
+    plt.show()
+
+
 if __name__ == '__main__':
     # plot_yearly_load_profile(save=True)
     # plot_yearly_duration_curve(save=True)
-    plot_daily_load_profile()
+    # plot_daily_load_profile()
+    plot_mean_2030_prices(save=True)
 

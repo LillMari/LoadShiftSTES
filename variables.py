@@ -30,11 +30,9 @@ def grid_vars(m):
     # For each household, and each month, its highest hourly electric consumption or production
     m.peak_monthly_house_volume = m.model.addVars(m.h, m.months, name="peak_monthly_house_volume")  # [kWh/h]
 
-    # For each month, the highest hourly electric volume into or leaving the neighbourhood
-    m.peak_monthly_total_volume = m.model.addVars(m.months, name="peak_monthly_total_volume")  # [kWh/h]
-
-    # Each year, the highest hourly electric volume leaving the neighbourhood
-    m.peak_yearly_total_export_volume = m.model.addVar(name="peak_yearly_total_export_volume")  # [kWh/h]
+    # For each month, the highest hourly electric volume into and leaving the neighbourhood [kWh/h]
+    m.peak_aggregated_monthly_import_volume = m.model.addVars(m.months, name="peak_aggregated_monthly_import_volume")
+    m.peak_aggregated_monthly_export_volume = m.model.addVars(m.months, name="peak_aggregated_monthly_export_volume")
 
 
 def stes_vars(m):

@@ -5,7 +5,7 @@ import numpy as np
 
 from modelbuilder import extract_load_profile, get_valid_household_ids
 
-DEMAND = pd.read_csv('Lastprofiler_sigurd/demand.csv')
+DEMAND = pd.read_csv('Lastprofiler/demand.csv')
 
 
 def get_one_load_profile(id):

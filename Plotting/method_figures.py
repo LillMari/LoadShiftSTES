@@ -53,19 +53,46 @@ def plot_grid_rent(save=False):
     x2 = np.linspace(0, 20, 5)
     y2 = x2 * 24.65 * NOK2024_TO_EUR + 95.39 * NOK2024_TO_EUR
 
-    plt.figure(figsize=(8, 5))
+    plt.figure(figsize=(6, 4))
     plt.ylim(0, 50)
+    plt.grid()
     plt.plot(x, y, label='Elvia\'s step model')
-    plt.plot(x2, y2, label=f'Regression line: {24.65 * NOK2024_TO_EUR:.2f}x + {95.39 * NOK2024_TO_EUR:.2f}')
+    plt.plot(x2, y2, label=f'{24.65 * NOK2024_TO_EUR:.2f}' +r'$\frac{€}{kWh/h}$ x +' +  f'{95.39 * NOK2024_TO_EUR:.2f}€')
     plt.xlabel('Maximum hourly power use [kWh/h]')
     plt.ylabel('Fixed fee [€/month]')
     plt.tight_layout()
     plt.margins(x=0)
     plt.gca().set_xticks([0, 2, 5, 10, 15, 20])
-    plt.grid()
     plt.legend()
     if save:
         plt.savefig('method_figures/step_model.pdf')
+    plt.show()
+
+
+def energy_ylims(ax):
+    ax.set_ylim((-420, 420))
+
+
+def plot_el_th_profile(save=False):
+    el_demand = pd.read_csv('../Results/base-now/el_demand.csv', index_col=0)
+    th_demand = pd.read_csv('../Results/base-now/th_demand.csv', index_col=0)
+
+    fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex='all', sharey='all', figsize=(8, 5))
+    plt.ylabel("Electric demand [kWh/h]")
+    ax1.plot(el_demand.index, el_demand['el_demand'], label='Electric demand')
+    ax1.grid(True)
+    ax1.set_ylabel("Electric demand [kWh/h]")
+    month_xticks(plt.gca())
+    ax1.margins(x=0)
+
+    ax2.plot(th_demand.index, th_demand['th_demand'], label='Thermal demand')
+    ax2.grid(True)
+    ax2.set_ylabel("Thermal demand [kWh/h]")
+    month_xticks(plt.gca())
+    ax2.margins(x=0)
+    plt.tight_layout()
+    if save:
+        plt.savefig('method_figures/el_and_th_demand.pdf')
     plt.show()
 
 
@@ -73,6 +100,7 @@ def main():
     # plot_weekly_el_th_demand()
     # plot_pv_profile(save=True)
     plot_grid_rent(save=True)
+    # plot_el_th_profile(save=True)
 
 
 if __name__ == '__main__':

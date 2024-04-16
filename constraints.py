@@ -31,22 +31,21 @@ def peak_monthly_individual_volume_rule(m, t, h, sign):
 
 
 def peak_monthly_aggregated_volume_rule(m, t, sign):
-    # TODO: denne trenger kanskje bare å gjelde import når export tarifferes?
     """ Rule tracking the peak hour of total grid volume, each month """
     month = m.month_from_hour[t]
     total_consume = sum(m.grid_import[t, h] - m.grid_export[t, h] for h in m.h)
-    return sign * total_consume <= m.peak_monthly_total_volume[month]
-
-
-def peak_monthly_aggregated_volume_export_rule(m, t):
-    """ Rule tracking the peak hour of total grid volume """
-
-    total_export = sum(m.grid_export[t, h] - m.grid_import[t, h] for h in m.h)
-    return total_export <= m.peak_yearly_total_export_volume
+    if sign > 0:
+        return total_consume <= m.peak_aggregated_monthly_import_volume[month]
+    else:
+        return -total_consume <= m.peak_aggregated_monthly_export_volume[month]
 
 
 def local_market_rule(m, t):
     return sum(m.local_import[t, h] - m.local_export[t, h] * m.local_market_export_eta for h in m.h) == 0
+
+
+def house_hp_max_qw_rule(m, t, h):
+    return m.house_hp_qw[t, h] <= m.house_hp_installed_capacity[h]
 
 
 def stes_el_rule(m, t):
@@ -94,13 +93,13 @@ def stes_charging_cutoff_rule(m, t):
     return energy_in <= energy_max
 
 
-def stes_discharging_rule(m, t):
+def stes_discharging_rule(m, t):  # TODO
     energy_out = m.stes_discharge_qc[t] / m.stes_discharge_eta
     energy_max = m.volumetric_heat_capacity * m.max_temperature_decrease * m.stes_volume
     return energy_out <= energy_max
 
 
-def stes_discharging_cutoff_rule(m, t):
+def stes_discharging_cutoff_rule(m, t):  # TODO
     energy_out = m.stes_discharge_qc[t] / m.stes_discharge_eta
     temp_volume = m.ground_base_temperature * m.stes_volume + m.stes_soc[t] / m.volumetric_heat_capacity
     A = m.volumetric_heat_capacity * m.max_temperature_decrease / (m.discharge_threshold - m.min_stes_temperature)
@@ -118,10 +117,10 @@ def lec_constraints(m):
     m.model.addConstrs((peak_monthly_aggregated_volume_rule(m, t, s) for t in m.t for s in m.sign),
                        name="peak_monthly_total_volume_constraint")
 
-    m.model.addConstrs((peak_monthly_aggregated_volume_export_rule(m, t)for t in m.t),
-                       name="peak_monthly_total_volume_export_constraint")
-
     m.model.addConstrs((local_market_rule(m, t) for t in m.t), name="local_market_constraint")
+
+    # House hp constraint
+    m.model.addConstrs((house_hp_max_qw_rule(m, t, h) for t in m.t for h in m.h), name="house_hp_max_qw_constraint")
 
     # STES constraints
     m.model.addConstrs((stes_el_rule(m, t) for t in m.t), name="stes_el_constraint")

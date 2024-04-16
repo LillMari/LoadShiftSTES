@@ -55,6 +55,9 @@ def write_results_to_csv(m, directory):
     dataframe_from_data(m.t, m.h, m.grid_import).sum(axis=1).rename("grid_import").to_csv(f'{path}/grid_import.csv')
     dataframe_from_data(m.t, m.h, m.grid_export).sum(axis=1).rename("grid_export").to_csv(f'{path}/grid_export.csv')
 
+    if m.enable_house_hp:
+        series_from_data(m.house_hp_installed_capacity, 'house_hp_installed_capacity', path)
+
     if m.enable_stes:
         stes_volume = series_from_data(m.stes_volume, 'stes_volume', path)
         stes_soc = series_from_data(m.stes_soc, 'stes_soc', path)
@@ -73,7 +76,8 @@ def write_results_to_csv(m, directory):
                             m.local_import).sum(axis=1).rename("local_import").to_csv(f'{path}/local_import.csv')
 
     dataframe_from_data(m.t, m.h, m.peak_monthly_house_volume).to_csv(f'{path}/peak_monthly_house_volume.csv')
-    series_from_data(m.peak_monthly_total_volume, 'peak_monthly_total_volume', path)
+    series_from_data(m.peak_aggregated_monthly_import_volume, 'peak_aggregated_monthly_import_volume', path)
+    series_from_data(m.peak_aggregated_monthly_export_volume, 'peak_aggregated_monthly_export_volume', path)
 
     th_demand = dataframe_from_data(m.t, m.h, m.th_demand).sum(axis=1)
     th_demand.rename("th_demand").to_csv(f'{path}/th_demand.csv')

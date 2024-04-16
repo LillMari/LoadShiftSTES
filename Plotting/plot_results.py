@@ -13,9 +13,15 @@ month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'O
 
 
 scenarios = {
-    "base": "../Results/BaseScenario",
-    "stes": "../Results/stes",
-    "stes_lec": "../Results/stes_lec"
+    "base-now": "../Results/base-now",
+    "hp-now": "../Results/hp-now",
+    "stes-now": "../Results/stes-now",
+    # "base-exporttariff": "../Results/base-exporttariff",
+    # "hp-exporttariff": "../Results/hp-exporttariff",
+    # "stes-exporttariff": "../Results/stes-exporttariff",
+    "base-future": "../Results/base-future",
+    "hp-future": "../Results/hp-future",
+    "stes-future": "../Results/stes-future",
 }
 
 
@@ -25,7 +31,7 @@ def month_xticks(ax):
 
 
 def energy_ylims(ax):
-    ax.set_ylim((-150, 400))
+    ax.set_ylim((-420, 420))
 
 
 def plot_run(name, folder):
@@ -121,7 +127,7 @@ for name, path in scenarios.items():
     plot_run(name, path)
 
 
-el_demand = pd.read_csv('../Results/stes/el_demand.csv', index_col=0)
+el_demand = pd.read_csv('../Results/base-now/el_demand.csv', index_col=0)
 plt.figure(figsize=(10, 3))
 sns.lineplot(el_demand, x=el_demand.index, y='el_demand')
 plt.grid()
@@ -132,7 +138,7 @@ energy_ylims(plt.gca())
 plt.tight_layout()
 plt.show()
 
-th_demand = pd.read_csv('../Results/stes/th_demand.csv', index_col=0)
+th_demand = pd.read_csv('../Results/base-now/th_demand.csv', index_col=0)
 plt.figure(figsize=(10, 3))
 sns.lineplot(th_demand, x=th_demand.index, y='th_demand')
 plt.grid()
@@ -143,7 +149,7 @@ energy_ylims(plt.gca())
 plt.tight_layout()
 plt.show()
 
-total_demand = pd.read_csv('../Results/stes/total_demand.csv', index_col=0)
+total_demand = pd.read_csv('../Results/base-now/total_demand.csv', index_col=0)
 plt.figure(figsize=(10, 3))
 sns.lineplot(total_demand, x=total_demand.index, y='total_demand')
 plt.grid()
@@ -166,7 +172,7 @@ def plot_objective_terms(scenarios):
     fig, ax = plt.subplots()
     data.plot(kind='bar', stacked=True, ax=ax)
     ax.set_ylabel("Cost [EUR]")
-    ax.set_ylim(top=280000)
+    ax.set_ylim(top=500000)
     for tick in ax.get_xticklabels():
         tick.set_rotation(0)
     fig.suptitle("Cost terms")
