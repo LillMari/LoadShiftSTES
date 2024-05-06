@@ -31,15 +31,26 @@ def plot_weekly_el_th_demand():
 
 def plot_pv_profile(save=False):
     pv_profile = pd.read_csv('../PV_profiler/pv_profil_oslo_2014.csv', skiprows=3)['electricity']  # kW/kWp
-    plt.figure(figsize=(8, 4))
-    sns.lineplot(pv_profile*10)
+    pv_profile = pv_profile * 10  # 10 kW_p system
+
+    plt.figure(figsize=(6, 3))
+    plt.grid()
+    sns.lineplot(pv_profile, label='Hourly')
     month_xticks(plt.gca())
     plt.ylabel('PV production [kWh/h]')
-    plt.xlabel('Time of year')
+    plt.xlabel('Month')
     plt.ylim(ymin=0, ymax=9)
-    plt.margins(x=0)
+    plt.legend(loc="upper left")
+    ax2 = plt.twinx()
+    grouping = 8760//12
+    pv_sum = pv_profile.groupby(pv_profile.index // grouping).sum()
+    pv_sum.index = ((pv_sum.index + 0.5) * grouping).astype(int)
+    sns.lineplot(pv_sum, ax=ax2, color='darkorange', lw=3, label='Monthly')
+    ax2.set_ylabel('PV production [kWh/month]')
+    ax2.set_ylim(0, 1420)
+    plt.xlim(0, 8760)
     plt.tight_layout()
-    plt.grid()
+    ax2.legend(loc="upper right")
     if save:
         plt.savefig('method_figures/pv_profile.pdf')
     plt.show()
@@ -95,12 +106,31 @@ def plot_el_th_profile(save=False):
         plt.savefig('method_figures/el_and_th_demand.pdf')
     plt.show()
 
+def plot_CINELDI_total_load():
+    from Power_flow.run_power_flow import set_up_lec_sim
+
+    network = set_up_lec_sim({})
+    load_profile = network.Ps
+
+    fig, ax1 = plt.subplots(figsize=(6, 3))
+
+    ax1.plot(load_profile.sum(axis=1))
+    ax1.set_ylim(0, 5.5)
+    month_xticks(ax1)
+    ax1.margins(x=0)
+    ax1.grid()
+    ax1.set_ylabel("Total demand [MWh/h]")
+    plt.tight_layout()
+    plt.savefig('method_figures/cineldi_total_demand.pdf')
+    plt.show()
+
 
 def main():
     # plot_weekly_el_th_demand()
     # plot_pv_profile(save=True)
-    plot_grid_rent(save=True)
+    # plot_grid_rent(save=True)
     # plot_el_th_profile(save=True)
+    plot_CINELDI_total_load()
 
 
 if __name__ == '__main__':

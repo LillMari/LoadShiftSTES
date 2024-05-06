@@ -26,7 +26,7 @@ ANSWERS = pd.read_csv('Lastprofiler/answers.csv')
 PV_GEN_PROFILE = pd.read_csv('PV_profiler/pv_profil_oslo_2014.csv', skiprows=3)['electricity']  # kW/kWp
 EL_TH_RATIO = pd.read_csv('PROFet/el_th_ratio.csv', index_col=0)
 SPOT_PRICES = pd.read_csv('Historic_spot_prices/spot_price_2019.csv', index_col=0)  # [EUR/MWh]
-FUTURE_SPOT_PRICES = pd.read_csv('Framtidspriser/future_spot_price_NVE.csv', index_col=0)  # [EUR/MWh]
+FUTURE_SPOT_PRICES = pd.read_csv('Framtidspriser/future_spot_price_NVE_mean_only.csv', index_col=0)  # [EUR/MWh]
 NOK2024_TO_EUR = 0.087
 
 

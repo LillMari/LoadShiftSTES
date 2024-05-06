@@ -100,13 +100,14 @@ class Network:
         return max(self.Ps.sum(axis=1))
 
     def _find_max_apparent_power(self):
-        s = np.sqrt(self.Ps ** 2 + self.Qs ** 2)
-        return max(s.sum(axis=1))
+        s = np.sqrt(self.Ps.sum(axis=1) ** 2 + self.Qs.sum(axis=1) ** 2)
+        return max(s)
 
     def _total_load(self):
-        s = np.sqrt(self.Ps ** 2 + self.Qs ** 2)
-        s_tot = s.sum(axis=1).sum(axis=0)
-        return s_tot
+        total_P = self.Ps.sum().sum()
+        total_Q = self.Qs.sum().sum()
+        s = np.sqrt(total_P ** 2 + total_Q ** 2)
+        return s
 
     def _create_controllers(self):
         """

@@ -42,14 +42,17 @@ def plot_el_th_demand_profile():
     return el_demand, th_demand
 
 
-def plot_spot_price(filename):
+def plot_spot_price(filename, name):
     hist_spot_price = pd.read_csv(filename, index_col=0) * 1e-3
     plt.figure(figsize=(8, 4))
     plt.plot(hist_spot_price.iloc[:, 0])
     plt.grid()
-    plt.title(f"Historic spot price {filename}")
+    #plt.title(f"Historic spot price {filename}")
     month_xticks(plt.gca())
     plt.ylabel('Spot price [€/kWh]')
+    plt.xlabel('Month')
+    plt.margins(x=0)
+    plt.savefig(f'plotting/method_figures/{name}.pdf')
     plt.show()
 
     # Also plot a week
@@ -63,8 +66,9 @@ def plot_spot_price(filename):
 
 
 if __name__ == '__main__':
-    plot_spot_price("Historic_spot_prices/spot_price_2019.csv")
-    plot_spot_price("Historic_spot_prices/spot_price.csv")
-    plot_spot_price("Framtidspriser/future_spot_price.csv")
-    plot_spot_price("Framtidspriser/future_spot_price_NVE.csv")
+    plot_spot_price("Historic_spot_prices/spot_price_2019.csv", 'spot_price_2019')
+    # plot_spot_price("Historic_spot_prices/spot_price.csv")
+    # plot_spot_price("Framtidspriser/future_spot_price.csv")
+    # plot_spot_price("Framtidspriser/future_spot_price_NVE.csv")
+    plot_spot_price("Framtidspriser/future_spot_price_NVE_mean_only.csv", 'spot_price_2030')
 

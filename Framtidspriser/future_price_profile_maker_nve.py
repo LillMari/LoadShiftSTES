@@ -10,13 +10,18 @@ WEEK_AVERAGES = pd.read_csv('NVE_fremtid_ukesnitt.csv')
 WEEK_AVERAGES = WEEK_AVERAGES[WEEK_AVERAGES['Model year'] == 2030]
 # NOTE: Week is 1-indexed
 WEEK_AVERAGES = WEEK_AVERAGES.set_index('Week')
-# Convert mean and std dev to EUR/MWh
+# Convert mean and std dev from øre/kWh to EUR/MWh
 WEEK_AVERAGES['Mean'] = WEEK_AVERAGES['Mean'] / 100 * 1000 * NOK2024_TO_EUR
-WEEK_AVERAGES['Std dev'] = WEEK_AVERAGES['Std dev'] / 100 * 1000 * NOK2024_TO_EUR
+# WEEK_AVERAGES['Std dev'] = WEEK_AVERAGES['Std dev'] / 100 * 1000 * NOK2024_TO_EUR
 
+# Unit: øre/kWh
 WEEK_PROFILES = pd.read_csv('NVE_fremtid_ukeprofiler.csv')
 SUMMER_WEEK_PROFILE = WEEK_PROFILES['Døgnvariasjon sommer 2030']
 WINTER_WEEK_PROFILE = WEEK_PROFILES['Døgnvariasjon vinter 2030']
+
+# Convert to EUR/MWh
+SUMMER_WEEK_PROFILE = SUMMER_WEEK_PROFILE / 100 * 1000 * NOK2024_TO_EUR
+WINTER_WEEK_PROFILE = WINTER_WEEK_PROFILE / 100 * 1000 * NOK2024_TO_EUR
 
 HOURS_PER_YEAR = 8760
 
@@ -33,12 +38,10 @@ def create_yearly_profile():
         # Average between summer and winter, weighted by summerness
         week_data = SUMMER_WEEK_PROFILE * summerness + WINTER_WEEK_PROFILE * (1 - summerness)
 
-        week_data /= week_data.std()
         week_data -= week_data.mean()
 
         if week > 52:
             week = 52
-        week_data *= WEEK_AVERAGES.loc[week, 'Std dev']
         week_data += WEEK_AVERAGES.loc[week, 'Mean']
 
         price = np.concatenate((price, week_data))
@@ -53,7 +56,7 @@ def create_yearly_profile():
 profile = create_yearly_profile()
 series = pd.Series(profile)
 series.rename('Price [EUR/MWh]', inplace=True)
-series.to_csv('future_spot_price_NVE.csv')
+series.to_csv('future_spot_price_NVE_mean_only.csv')
 
 plt.figure()
 sns.lineplot(profile)

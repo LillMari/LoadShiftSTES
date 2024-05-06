@@ -22,21 +22,20 @@ def find_net_load(folder):
     tot_export = pd.read_csv(f'../Results/{folder}/grid_export.csv', index_col=0) * 1e-3
     return tot_import['grid_import'] - tot_export['grid_export']
 
+
 def main():
     global lec_sim
-    case = 'BaseScenario'
-    # case = 'stes'
-    # case = 'stes_lec'
-    # case = 'no_lec'
-    if case != 'no_lec':
-        lec_profiles = {89: find_net_load(case)}  # LEC bus_i: 89, 104, 65, 30, 38
-    else:
-        lec_profiles = {}
-    lec_sim = set_up_lec_sim(lec_profiles)
+    cases = ['base-now', 'hp-now', 'stes-now', 'base-future', 'hp-future', 'stes-future', 'no_lec']
+    for case in cases:
+        if case != 'no_lec':
+            lec_profiles = {89: find_net_load(case)}  # LEC bus_i: 89, 104, 65, 30, 38
+        else:
+            lec_profiles = {}
+        lec_sim = set_up_lec_sim(lec_profiles)
 
-    time_steps = range(8760)
-    lec_sim.run_time_series(time_steps)
-    lec_sim.write_results_to_folder(f'../Results/{case}/powerflow')
+        time_steps = range(8760)
+        lec_sim.run_time_series(time_steps)
+        lec_sim.write_results_to_folder(f'../Results/{case}/powerflow')
 
 
 if __name__ == '__main__':

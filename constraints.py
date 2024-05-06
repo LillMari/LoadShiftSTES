@@ -93,13 +93,13 @@ def stes_charging_cutoff_rule(m, t):
     return energy_in <= energy_max
 
 
-def stes_discharging_rule(m, t):  # TODO
+def stes_discharging_rule(m, t):
     energy_out = m.stes_discharge_qc[t] / m.stes_discharge_eta
     energy_max = m.volumetric_heat_capacity * m.max_temperature_decrease * m.stes_volume
     return energy_out <= energy_max
 
 
-def stes_discharging_cutoff_rule(m, t):  # TODO
+def stes_discharging_cutoff_rule(m, t):
     energy_out = m.stes_discharge_qc[t] / m.stes_discharge_eta
     temp_volume = m.ground_base_temperature * m.stes_volume + m.stes_soc[t] / m.volumetric_heat_capacity
     A = m.volumetric_heat_capacity * m.max_temperature_decrease / (m.discharge_threshold - m.min_stes_temperature)

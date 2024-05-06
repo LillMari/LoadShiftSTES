@@ -12,17 +12,17 @@ month_hours_cum = [sum(month_hours[:x]) for x in range(12)]
 month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 
-scenarios = {
-    "base-now": "../Results/base-now",
-    "hp-now": "../Results/hp-now",
-    "stes-now": "../Results/stes-now",
+scenarios = [
+    ("base-now", "2020 case 1", "../Results/base-now"),
+    ("hp-now", "2020 case 2", "../Results/hp-now"),
+    ("stes-now", "2020 case 3", "../Results/stes-now"),
     # "base-exporttariff": "../Results/base-exporttariff",
     # "hp-exporttariff": "../Results/hp-exporttariff",
     # "stes-exporttariff": "../Results/stes-exporttariff",
-    "base-future": "../Results/base-future",
-    "hp-future": "../Results/hp-future",
-    "stes-future": "../Results/stes-future",
-}
+    ("base-future", "2030 case 1", "../Results/base-future"),
+    ("hp-future", "2030 case 2", "../Results/hp-future"),
+    ("stes-future", "2030 case 3", "../Results/stes-future"),
+]
 
 
 def month_xticks(ax):
@@ -34,19 +34,19 @@ def energy_ylims(ax):
     ax.set_ylim((-420, 420))
 
 
-def plot_run(name, folder):
+def plot_run(name, nicename, folder):
     tot_import = pd.read_csv(f'{folder}/grid_import.csv', index_col=0)
     tot_export = pd.read_csv(f'{folder}/grid_export.csv', index_col=0)
     net_import = tot_import['grid_import'] - tot_export['grid_export']
 
-    plt.figure(figsize=(10, 3))
-    sns.lineplot(net_import)
+    plt.figure(figsize=(8, 3))
+    sns.lineplot(net_import, label=name)
     plt.grid()
-    plt.title(f'Net grid import, {name}')
     plt.ylabel("Grid volume [kWh/h]")
     month_xticks(plt.gca())
     energy_ylims(plt.gca())
     plt.tight_layout()
+    plt.margins(x=0)
     plt.show()
     print(f"Max net grid volume, {name}: {net_import.max()}")
     print(f"Min net grid volume, {name}: {net_import.min()}")
@@ -54,29 +54,43 @@ def plot_run(name, folder):
     print(f"RMS grid volume, {name}: {np.sqrt(net_import.pow(2).mean())}")
 
     heating_sources = pd.read_csv(f'{folder}/heating_sources.csv', index_col=0)
-    heating_sources['week'] = heating_sources.index // (7*24)
+    heating_sources['week'] = heating_sources.index // (7*24) + 1
     heating_sources = heating_sources.groupby('week').sum()
-    fig, ax = plt.subplots(figsize=(10, 3))
+    fig, ax = plt.subplots(figsize=(6, 3))
+    #artist, = ax.plot([0], label=nicename)
+    #artist.set_visible(False)
+    heating_sources.rename(columns={'resistive_heating': 'Panel Oven',
+                                    'stes_heating': 'STES',
+                                    'stes_hp_direct': 'Shared Heat Pump',
+                                    'house_hp_heating': 'Individual Heat Pump'}, inplace=True)
     heating_sources.plot(kind='bar', stacked=True, ax=ax)
-    fig.suptitle(f'Heating sources, {name}')
+    # fig.suptitle(f'Heating sources, {name}')
     ax.set_ylabel("Heat provided [kWh]")
     ax.set_xlabel("Week")
+    ax.set_xticks([0] + list(range(4, 51, 5)) + [51])
+    plt.legend(title=nicename)
     plt.tight_layout()
+    plt.savefig(f'results_figures/heating_sources_{name}.pdf')
     plt.show()
 
     if os.path.exists(f'{folder}/stes_soc.csv'):
         stes_soc = pd.read_csv(f'{folder}/stes_soc.csv', index_col=0)
-        plt.figure(figsize=(10, 3))
-        sns.lineplot(stes_soc)
+        plt.figure(figsize=(6, 2))
+        sns.lineplot(stes_soc, legend=False)
         plt.grid()
-        plt.title(f'STES soc, {name}')
+        # plt.title(f'STES soc, {name}')
+        plt.ylabel("State of Charge [kWh]")
         month_xticks(plt.gca())
 
-        stes_volume = pd.read_csv(f'{folder}/stes_temperature.csv', index_col=0)
+        stes_temperature = pd.read_csv(f'{folder}/stes_temperature.csv', index_col=0)
         ax2 = plt.gca().twinx()
-        ax2.plot(stes_volume)
+        ax2.plot(stes_temperature, label="_")
+        ax2.set_ylabel("Average temperature [°C]")
 
+        plt.margins(x=0)
         plt.tight_layout()
+        plt.legend(loc='upper left', labels=[nicename])
+        plt.savefig(f'results_figures/stes_soc_{name}.pdf')
         plt.show()
 
     if os.path.exists(f'{folder}/stes_charge_qw.csv') and os.path.exists(f'{folder}/stes_discharge_qc.csv'):
@@ -85,7 +99,7 @@ def plot_run(name, folder):
         stes_net_energy = stes_charge['stes_charge_qw'] - stes_discharge['stes_discharge_qc']
         stes_net_energy = np.cumsum(stes_net_energy.values)
 
-        plt.figure(figsize=(10, 3))
+        plt.figure(figsize=(6, 2))
         miny = np.min(stes_net_energy)
         maxy = np.max(stes_net_energy)
         lasty = stes_net_energy[-1]
@@ -106,25 +120,13 @@ def plot_run(name, folder):
         plt.tight_layout()
         plt.show()
 
-    if os.path.exists(f'{folder}/local_import.csv'):
-        local_import = pd.read_csv(f'{folder}/local_import.csv', index_col=0)
-        plt.figure(figsize=(10, 3))
-        sns.lineplot(local_import)
-        plt.grid()
-        plt.title(f'local import, {name}')
-        plt.ylabel("Power volume [kWh/h]")
-        month_xticks(plt.gca())
-        energy_ylims(plt.gca())
-        plt.tight_layout()
-        plt.show()
-
     if os.path.exists(f'{folder}/pv_installed_capacity.csv'):
         pv_installed_capacity = pd.read_csv(f'{folder}/pv_installed_capacity.csv', index_col=0)
         print(f"PV installed capacity, {name}:", pv_installed_capacity.sum().values, "kWp")
 
 
-for name, path in scenarios.items():
-    plot_run(name, path)
+for name, nicename, path in scenarios:
+    plot_run(name, nicename, path)
 
 
 el_demand = pd.read_csv('../Results/base-now/el_demand.csv', index_col=0)
@@ -150,19 +152,23 @@ plt.tight_layout()
 plt.show()
 
 total_demand = pd.read_csv('../Results/base-now/total_demand.csv', index_col=0)
-plt.figure(figsize=(10, 3))
+print(f"total_demand max/min: {total_demand.max()[0]}/{total_demand.min()[0]}")
+plt.figure(figsize=(6, 3))
 sns.lineplot(total_demand, x=total_demand.index, y='total_demand')
 plt.grid()
-plt.title('Total demand')
+plt.ylabel("Total Demand [kWh/h]")
+plt.xlabel("Month")
 month_xticks(plt.gca())
 energy_ylims(plt.gca())
 plt.tight_layout()
+plt.margins(x=0)
+plt.savefig('results_figures/total_demand.pdf')
 plt.show()
 
 
 def plot_objective_terms(scenarios):
     data = pd.DataFrame()
-    for name, path in scenarios.items():
+    for name, nicename, path in scenarios:
         costs = pd.read_csv(f"{path}/objective_terms.csv", index_col=0)
         costs = costs.transpose()
         costs.index = [name]
