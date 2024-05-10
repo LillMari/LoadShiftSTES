@@ -300,7 +300,7 @@ class ModelBuilder:
         # The volume tariff includes taxes, so remove them to make the values separate
         volume_network_tariff = volume_network_tariff - volume_tax
         # Tariff paid per kW of power sold to the power market. [EUR/kW]
-        selling_volume_tariff = -0.05 * NOK2024_TO_EUR  # TODO: MVA
+        selling_volume_tariff = -0.05 * NOK2024_TO_EUR
 
         # How much is paid per household each month as a base rate [EUR]
         house_monthly_connection_base = 95.39 * NOK2024_TO_EUR
@@ -311,8 +311,6 @@ class ModelBuilder:
         peak_aggregated_monthly_export_tariff = 0
 
         if self.enable_export_tariff:
-            house_monthly_connection_base = 0  # TODO: skal den bli 0?
-
             # With the local market enabled, houses don't pay for their individual peaks
             # Instead the capacity cost is based on the total volume each hour
             # The price is scaled up such that, everything else being identical, the DSO gets the same amount
@@ -322,6 +320,7 @@ class ModelBuilder:
             peak_aggregated_monthly_import_tariff = expected_capacity_cost / aggregated_peaks
             peak_aggregated_monthly_export_tariff = expected_capacity_cost / aggregated_peaks
 
+            print(expected_capacity_cost / aggregated_peaks)
             # Houses no longer pay for capacity individually
             peak_individual_monthly_power_tariff = 0
             # The DSO no longer pays you for selling to the power market

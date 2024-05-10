@@ -56,6 +56,20 @@ def plot_pv_profile(save=False):
     plt.show()
 
 
+def plot_temperature_profile():
+    temp_profile = pd.read_csv('../Temperaturprofiler/temperatur_blindern2021.csv')['temperature [degC]']
+    plt.figure(figsize=(7, 3))
+    plt.plot(temp_profile)
+    month_xticks(plt.gca())
+    plt.grid()
+    plt.ylabel('Outside temperature [$^\circ$C]')
+    plt.xlabel('Month')
+    plt.margins(x=0)
+    plt.tight_layout()
+    plt.savefig('method_figures/temperature_profile.pdf')
+    plt.show()
+
+
 def plot_grid_rent(save=False):
     x = [0, 2, 2, 5, 5, 10, 10, 15, 15, 20]
     y_nok = [120, 120, 190, 190, 305, 305, 420, 420, 535, 535]
@@ -64,13 +78,14 @@ def plot_grid_rent(save=False):
     x2 = np.linspace(0, 20, 5)
     y2 = x2 * 24.65 * NOK2024_TO_EUR + 95.39 * NOK2024_TO_EUR
 
-    plt.figure(figsize=(6, 4))
+    plt.figure(figsize=(7, 3))
     plt.ylim(0, 50)
     plt.grid()
-    plt.plot(x, y, label='Elvia\'s step model')
-    plt.plot(x2, y2, label=f'{24.65 * NOK2024_TO_EUR:.2f}' +r'$\frac{€}{kWh/h}$ x +' +  f'{95.39 * NOK2024_TO_EUR:.2f}€')
+    plt.plot(x, y, label='Elvia\'s step model', lw=3)
+    plt.plot(x2, y2, label=f'{24.65 * NOK2024_TO_EUR:.1f}' +
+                           r' $\frac{€}{kWh/h}$ x +' + f'{95.39 * NOK2024_TO_EUR:.1f} €', lw=3)
     plt.xlabel('Maximum hourly power use [kWh/h]')
-    plt.ylabel('Fixed fee [€/month]')
+    plt.ylabel('Capacity grid tariff [€]')
     plt.tight_layout()
     plt.margins(x=0)
     plt.gca().set_xticks([0, 2, 5, 10, 15, 20])
@@ -106,13 +121,14 @@ def plot_el_th_profile(save=False):
         plt.savefig('method_figures/el_and_th_demand.pdf')
     plt.show()
 
+
 def plot_CINELDI_total_load():
     from Power_flow.run_power_flow import set_up_lec_sim
 
     network = set_up_lec_sim({})
     load_profile = network.Ps
 
-    fig, ax1 = plt.subplots(figsize=(6, 3))
+    fig, ax1 = plt.subplots(figsize=(7, 3))
 
     ax1.plot(load_profile.sum(axis=1))
     ax1.set_ylim(0, 5.5)
@@ -125,12 +141,39 @@ def plot_CINELDI_total_load():
     plt.show()
 
 
+def plot_spot_price(name):
+    if name == '2019':
+        filename = '../Historic_spot_prices/spot_price_2019.csv'
+    elif name == '2030':
+        filename = '../Framtidspriser/future_spot_price_NVE_mean_only.csv'
+    else:
+        ValueError('Ugyldig prisprofil')
+
+    hist_spot_price = pd.read_csv(filename, index_col=0) * 1e-3
+    plt.figure(figsize=(7, 3))
+    plt.plot(hist_spot_price.iloc[:, 0])
+    plt.grid()
+    month_xticks(plt.gca())
+    plt.ylabel('Spot price [€/kWh]')
+    plt.xlabel('Month')
+    plt.margins(x=0)
+    plt.tight_layout()
+    plt.ylim(0, 0.12)
+    plt.savefig(f'method_figures/spot_price_{name}.pdf')
+    plt.show()
+
+
+
 def main():
     # plot_weekly_el_th_demand()
     # plot_pv_profile(save=True)
-    # plot_grid_rent(save=True)
+    plot_grid_rent(save=True)
     # plot_el_th_profile(save=True)
-    plot_CINELDI_total_load()
+    # plot_CINELDI_total_load()
+    # plot_temperature_profile()
+    # plot_spot_price('2019')
+    # plot_spot_price('2030')
+
 
 
 if __name__ == '__main__':

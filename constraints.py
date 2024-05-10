@@ -78,34 +78,34 @@ def stes_soc_evolution_rule(m, t):
         m.stes_charge_qw[t] * m.stes_charge_eta - m.stes_discharge_qc[t] / m.stes_discharge_eta
 
 
-def stes_charging_rule(m, t):
-    energy_in = m.stes_charge_qw[t] * m.stes_charge_eta
-    energy_max = m.volumetric_heat_capacity * m.max_temperature_increase * m.stes_volume
-    return energy_in <= energy_max
+#def stes_charging_rule(m, t):
+#    energy_in = m.stes_charge_qw[t] * m.stes_charge_eta
+#    energy_max = m.volumetric_heat_capacity * m.max_temperature_increase * m.stes_volume
+#    return energy_in <= energy_max
 
 
 def stes_charging_cutoff_rule(m, t):
-    energy_in = m.stes_charge_qw[t] * m.stes_charge_eta
+    temp_increase = m.stes_charge_qw[t] * m.stes_charge_eta / m.volumetric_heat_capacity
     temp_volume = m.ground_base_temperature * m.stes_volume + m.stes_soc[t] / m.volumetric_heat_capacity
-    A = m.volumetric_heat_capacity * m.max_temperature_increase / (m.max_stes_temperature - m.charge_threshold)
-    B = A * m.max_stes_temperature * m.stes_volume
-    energy_max = -A * temp_volume + B
-    return energy_in <= energy_max
+    A = m.max_temperature_increase / (m.max_stes_temperature - m.charge_threshold)
+    B = A * m.max_stes_temperature
+    max_temp_increase = -A * temp_volume + B * m.stes_volume
+    return temp_increase <= max_temp_increase
 
 
-def stes_discharging_rule(m, t):
-    energy_out = m.stes_discharge_qc[t] / m.stes_discharge_eta
-    energy_max = m.volumetric_heat_capacity * m.max_temperature_decrease * m.stes_volume
-    return energy_out <= energy_max
+#def stes_discharging_rule(m, t):
+#    energy_out = m.stes_discharge_qc[t] / m.stes_discharge_eta
+#    energy_max = m.volumetric_heat_capacity * m.max_temperature_decrease * m.stes_volume
+#   return energy_out <= energy_max
 
 
 def stes_discharging_cutoff_rule(m, t):
-    energy_out = m.stes_discharge_qc[t] / m.stes_discharge_eta
+    temp_decrease = m.stes_discharge_qc[t] / m.stes_discharge_eta / m.volumetric_heat_capacity
     temp_volume = m.ground_base_temperature * m.stes_volume + m.stes_soc[t] / m.volumetric_heat_capacity
-    A = m.volumetric_heat_capacity * m.max_temperature_decrease / (m.discharge_threshold - m.min_stes_temperature)
-    B = -A * m.min_stes_temperature * m.stes_volume
-    energy_max = A * temp_volume + B
-    return energy_out <= energy_max
+    A = m.max_temperature_decrease / (m.discharge_threshold - m.min_stes_temperature)
+    B = -A * m.min_stes_temperature
+    max_temp_decrease = A * temp_volume + B * m.stes_volume
+    return temp_decrease <= max_temp_decrease
 
 
 def lec_constraints(m):
@@ -128,7 +128,7 @@ def lec_constraints(m):
     m.model.addConstrs((stes_hp_qw_usage_rule(m, t) for t in m.t), name="stes_hp_qw_usage_constraint")
     m.model.addConstrs((stes_th_rule(m, t) for t in m.t), name="stes_th_constraint")
     m.model.addConstrs((stes_soc_evolution_rule(m, t) for t in m.t), name="stes_soc_evolution_constraint")
-    m.model.addConstrs((stes_charging_rule(m, t) for t in m.t), name="stes_charging_constraint")
+    # m.model.addConstrs((stes_charging_rule(m, t) for t in m.t), name="stes_charging_constraint")
     m.model.addConstrs((stes_charging_cutoff_rule(m, t) for t in m.t), name="stes_charging_cutoff_constraint")
-    m.model.addConstrs((stes_discharging_rule(m, t) for t in m.t), name="stes_discharging_constraint")
+    # m.model.addConstrs((stes_discharging_rule(m, t) for t in m.t), name="stes_discharging_constraint")
     m.model.addConstrs((stes_discharging_cutoff_rule(m, t) for t in m.t), name="stes_discharging_cutoff_constraint")

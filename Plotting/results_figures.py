@@ -58,6 +58,7 @@ def plot_lineloss_diff(cases, compare=False):
         line_loss = pd.read_csv(f'../Results/{case["name"]}/powerflow/line_summaries.csv')['active_line_losses_mw']
         loss_diff = line_loss - base_line_loss
         plt.figure(figsize=(6, 3))
+        plt.hlines(y=0, xmin=0, xmax=8760, colors='gray')
         if compare:
             case2 = case['name'].replace('future', 'now')
             line_loss2 = pd.read_csv(f'../Results/{case2}/powerflow/line_summaries.csv')['active_line_losses_mw']
@@ -162,9 +163,9 @@ def plot_net_grid_import(selected_cases, compare=False):
         plt.show()
 
 
-def plot_heating_sources():
+def plot_heating_sources(case, name):
     for scenario, year in {'now': '2020', 'future': '2030'}.items():
-        heating_sources = pd.read_csv(f'../Results/stes-{scenario}/heating_sources.csv', index_col=0)
+        heating_sources = pd.read_csv(f'../Results/{case}-{scenario}/heating_sources.csv', index_col=0)
         heating_sources['week'] = heating_sources.index // (7 * 24) + 1
         heating_sources = heating_sources.groupby('week').sum()
         fig, ax = plt.subplots(figsize=(7, 3))
@@ -173,12 +174,12 @@ def plot_heating_sources():
                                         'stes_hp_direct': 'Shared HP',
                                         'house_hp_heating': 'Individual HP'}, inplace=True)
         heating_sources.plot(kind='bar', stacked=True, ax=ax)
-        ax.set_ylabel("Heat provided [kWh]")
+        ax.set_ylabel("Thermal demand [kWh/week]")
         ax.set_xlabel("Week")
         ax.set_xticks([0] + list(range(4, 51, 5)) + [51])
-        plt.legend(title=f'{year} case 3 (STES)')
+        plt.legend(title=f'{year} {name}')
         plt.tight_layout()
-        plt.savefig(f'results_figures/heating_sources_stes-{scenario}.pdf')
+        plt.savefig(f'results_figures/heating_sources_{case}-{scenario}.pdf')
         plt.show()
 
 
@@ -234,7 +235,7 @@ def plot_objective_terms():
 
     data = data.loc[:, ["Electricity", "Grid tariff", "PV", "House HP", "STES"]]
 
-    fig = plt.figure(figsize=(8, 4))
+    fig = plt.figure(figsize=(7, 4))
     ax = plt.gca()
     data.plot(kind='bar', stacked=True, ax=ax)
 
@@ -247,7 +248,7 @@ def plot_objective_terms():
     ax.bar_label(ax.containers[-1], fmt="{:.0f}")
 
     ax.set_ylabel("Cost [EUR]")
-    ax.set_ylim(top=200000)
+    ax.set_ylim(top=220000)
     for tick in ax.get_xticklabels():
         tick.set_rotation(0)
     fig.tight_layout()
@@ -258,15 +259,17 @@ def plot_objective_terms():
 def main():
     # plot_linelosses()
     # plot_lineloss_diff(cases[:3], compare=False)
+    # plot_lineloss_diff(cases[3:], compare=True)
     # plot_duration_curve(cases[:3], name='now')
     # plot_duration_curve(cases[3:], name='future')
     # print(f'Total load: {find_total_load_grid()}')
     # print(f'Peak load: {find_peak_load_grid()}')
     # plot_net_grid_import(cases[:3], compare=False)
     # plot_net_grid_import(cases[3:], compare=True)
-    # plot_heating_sources()
+    plot_heating_sources(case='stes', name='Case 3 (STES)')
+    plot_heating_sources(case='hp', name='Case 2 (HP)')
     # plot_stes_soc()
-    plot_objective_terms()
+    # plot_objective_terms()
     # print(find_total_load_community())
 
 
