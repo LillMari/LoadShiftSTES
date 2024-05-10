@@ -5,17 +5,16 @@ import numpy as np
 
 NOK2024_TO_EUR = 0.087
 
-
-WEEK_AVERAGES = pd.read_csv('NVE_fremtid_ukesnitt.csv')
+# Data from "Tall bak figurer LA23"
+# https://www.nve.no/energi/analyser-og-statistikk/langsiktig-kraftmarkedsanalyse/langsiktig-kraftmarkedsanalyse-2023/
+WEEK_AVERAGES = pd.read_csv('NVE_fremtid_ukesnitt.csv')  # [øre/kWh]
 WEEK_AVERAGES = WEEK_AVERAGES[WEEK_AVERAGES['Model year'] == 2030]
 # NOTE: Week is 1-indexed
 WEEK_AVERAGES = WEEK_AVERAGES.set_index('Week')
-# Convert mean and std dev from øre/kWh to EUR/MWh
+# Convert mean from øre/kWh to EUR/MWh
 WEEK_AVERAGES['Mean'] = WEEK_AVERAGES['Mean'] / 100 * 1000 * NOK2024_TO_EUR
-# WEEK_AVERAGES['Std dev'] = WEEK_AVERAGES['Std dev'] / 100 * 1000 * NOK2024_TO_EUR
 
-# Unit: øre/kWh
-WEEK_PROFILES = pd.read_csv('NVE_fremtid_ukeprofiler.csv')
+WEEK_PROFILES = pd.read_csv('NVE_fremtid_ukeprofiler.csv')  # [øre/kWh]
 SUMMER_WEEK_PROFILE = WEEK_PROFILES['Døgnvariasjon sommer 2030']
 WINTER_WEEK_PROFILE = WEEK_PROFILES['Døgnvariasjon vinter 2030']
 
@@ -24,6 +23,7 @@ SUMMER_WEEK_PROFILE = SUMMER_WEEK_PROFILE / 100 * 1000 * NOK2024_TO_EUR
 WINTER_WEEK_PROFILE = WINTER_WEEK_PROFILE / 100 * 1000 * NOK2024_TO_EUR
 
 HOURS_PER_YEAR = 8760
+
 
 def create_yearly_profile():
     """
@@ -53,10 +53,11 @@ def create_yearly_profile():
     price[price < 0] = 0
     return price
 
+
 profile = create_yearly_profile()
 series = pd.Series(profile)
 series.rename('Price [EUR/MWh]', inplace=True)
-series.to_csv('future_spot_price_NVE_mean_only.csv')
+series.to_csv('future_spot_price.csv')
 
 plt.figure()
 sns.lineplot(profile)

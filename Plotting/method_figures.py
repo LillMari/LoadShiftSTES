@@ -123,7 +123,7 @@ def plot_el_th_profile(save=False):
 
 
 def plot_CINELDI_total_load():
-    from Power_flow.run_power_flow import set_up_lec_sim
+    from Power_flow.power_flow import set_up_lec_sim
 
     network = set_up_lec_sim({})
     load_profile = network.Ps
@@ -163,17 +163,15 @@ def plot_spot_price(name):
     plt.show()
 
 
-
 def main():
     # plot_weekly_el_th_demand()
     # plot_pv_profile(save=True)
-    plot_grid_rent(save=True)
+    # plot_grid_rent(save=True)
     # plot_el_th_profile(save=True)
-    # plot_CINELDI_total_load()
+    plot_CINELDI_total_load()
     # plot_temperature_profile()
     # plot_spot_price('2019')
     # plot_spot_price('2030')
-
 
 
 if __name__ == '__main__':

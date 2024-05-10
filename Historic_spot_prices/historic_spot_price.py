@@ -17,4 +17,4 @@ country_code = 'NO_1'  # Norway
 
 # Dump results to file
 ts = client.query_day_ahead_prices(country_code, start=start, end=end)
-ts.to_csv('spot_price_2019.csv')
+ts.to_csv('spot_price_2019.csv')  # [EUR/MWh]

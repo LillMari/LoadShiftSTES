@@ -1,7 +1,5 @@
 __pycache__/
-Framtidspriser/results_output_Operational.csv
-Lastprofiler/
 .idea/
+**/token.txt
 Temperaturprofiler/frost_id.txt
 Temperaturprofiler/frost_results.json
-Historic_spot_prices/token.txt

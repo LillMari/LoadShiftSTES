@@ -1,0 +1,8 @@
+requests
+requests_oauthlib
+pandas
+numpy
+pandapower
+gurobipy
+matplotlib
+seaborn

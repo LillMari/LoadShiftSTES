@@ -6,10 +6,6 @@ Created on Thu Jan 05 2024
 """
 
 import sys
-import gurobipy as gp
-from gurobipy import GRB
-import pandas as pd
-import numpy as np
 from types import SimpleNamespace
 
 from params import *
@@ -21,12 +17,12 @@ from solution_writer import *
 """
 Loading data
 """
-DEMAND = pd.read_csv('Lastprofiler/demand.csv')
+DEMAND = pd.read_csv('Lastprofiler/demand.csv')  # [kWh/h]
 ANSWERS = pd.read_csv('Lastprofiler/answers.csv')
 PV_GEN_PROFILE = pd.read_csv('PV_profiler/pv_profil_oslo_2014.csv', skiprows=3)['electricity']  # kW/kWp
 EL_TH_RATIO = pd.read_csv('PROFet/el_th_ratio.csv', index_col=0)
 SPOT_PRICES = pd.read_csv('Historic_spot_prices/spot_price_2019.csv', index_col=0)  # [EUR/MWh]
-FUTURE_SPOT_PRICES = pd.read_csv('Framtidspriser/future_spot_price_NVE_mean_only.csv', index_col=0)  # [EUR/MWh]
+FUTURE_SPOT_PRICES = pd.read_csv('Framtidspriser/future_spot_price.csv', index_col=0)  # [EUR/MWh]
 NOK2024_TO_EUR = 0.087
 
 
@@ -64,6 +60,7 @@ def find_el_th_ratio(id):
 
 def extract_load_profile(id):
     load_profile = DEMAND[DEMAND['ID'] == id]
+    # Demand data contains some hours from 2020 and 2022, so cut them out
     load_profile = load_profile[load_profile['Date'].str.contains('2021')]
     load_profile = load_profile.reset_index(drop=True)['Demand_kWh']
 
@@ -244,7 +241,7 @@ class ModelBuilder:
                 'max_installed_volume': 7 * 1e4,  # [m3] ground
                 'ground_base_temperature': 7,  # [deg C] the temperature at which no losses occur
                 'volumetric_heat_capacity': 0.6,  # [kWh / m3K] in ground
-                'heat_retainment': 0.60 ** (1 / 8760),  # [1/h] # TODO: skal være 40-60%
+                'heat_retainment': 0.60 ** (1 / 8760),  # [1/h] #  Chosen such that total losses are 40-60%
                 'max_temperature': 80,  # [deg C]
                 'min_temperature': 25,  # [deg C]
                 'charge_threshold': 25,  # [deg C]
@@ -253,12 +250,12 @@ class ModelBuilder:
                 # heat pump parameters
                 'hp_investment_cost': annualize_cost(400, lifetime=20),  # [EUR/kW of Qw]
                 'hp_cop': 3,
-                'hp_max_qw_possible': 300,  # [kW]
+                'hp_max_qw_possible': 300,  # [kW]  should be set higher if used by more than 100 houses
 
                 # In and out of STES parameters
                 'charge_eta': 0.99,
                 'discharge_eta': 0.99,
-                'discharge_cop': 750,
+                'discharge_cop': 750,  # Discharging is not actually using a heat pump, so the "COP" is very high
                 }
 
         max_temp_diff = calculate_max_hourly_temperature_diff(resu, T_target=60, hours_available=200)
@@ -277,7 +274,7 @@ class ModelBuilder:
         if self.use_future_prices:
             prices = FUTURE_SPOT_PRICES  # [EUR/MWh]
         else:
-            prices = SPOT_PRICES
+            prices = SPOT_PRICES  # [EUR/MWh]
 
         return {
             'power_market_price': prices * 1e-3,  # [EUR/kWh]
