@@ -68,8 +68,8 @@ def write_results_to_csv(m, directory):
 
         series_from_data(m.stes_charge_qw, "stes_charge_qw", path)
         series_from_data(m.stes_discharge_qc, "stes_discharge_qc", path)
-        series_from_data(m.hp_direct_qw, "hp_direct_qw", path)
-        series_from_data(m.hp_max_qw, "hp_max_qw", path)
+        series_from_data(m.stes_hp_direct_qw, "stes_hp_direct_qw", path)
+        series_from_data(m.stes_hp_max_qw, "stes_hp_max_qw", path)
 
     if m.enable_local_market:
         dataframe_from_data(m.t, m.h,
@@ -92,7 +92,7 @@ def write_results_to_csv(m, directory):
     house_hp_heating = dataframe_from_data(m.t, m.h, m.house_hp_qw).sum(axis=1)
     stes_discharge_qc = series_from_data(m.stes_discharge_qc, "stes_discharge_qc")
     stes_discharge_qw = stes_discharge_qc / (1 - 1/m.stes_discharge_cop)
-    stes_hp_direct_qw = series_from_data(m.hp_direct_qw, 'hp_direct_qw')
+    stes_hp_direct_qw = series_from_data(m.stes_hp_direct_qw, 'stes_hp_direct_qw')
     heating_data = {'resistive_heating': resistive_heating}
     if m.enable_stes:
         heating_data['stes_heating'] = stes_discharge_qw

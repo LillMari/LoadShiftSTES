@@ -143,7 +143,7 @@ def calculate_max_hourly_temperature_diff(resu, T_target, hours_available):
 
 
 class ModelBuilder:
-    def __init__(self, *, num_houses, enable_house_hp, enable_stes, enable_local_market,
+    def __init__(self, *, num_houses, enable_house_hp, enable_stes,
                  enable_export_tariff, use_future_prices, seed=1234):
         self.rng = np.random.default_rng(seed=seed)
         self.hours = range(8760)
@@ -155,7 +155,6 @@ class ModelBuilder:
         self.num_houses = num_houses
         self.enable_house_hp = enable_house_hp
         self.enable_stes = enable_stes
-        self.enable_local_market = enable_local_market
         self.enable_export_tariff = enable_export_tariff
         self.use_future_prices = use_future_prices
 
@@ -165,7 +164,6 @@ class ModelBuilder:
         self.stes_params = self._get_stes_params()
         self.house_hp_params = self._get_house_hp_params()
         self.power_market_params = self._get_power_market_params()
-        self.local_market_params = self._get_local_market_params()
         self.tariff_and_tax_params = self._get_tariff_and_tax_params()
 
     def _get_load_profiles(self):
@@ -242,12 +240,10 @@ class ModelBuilder:
                 'ground_base_temperature': 7,  # [deg C] the temperature at which no losses occur
                 'volumetric_heat_capacity': 0.6,  # [kWh / m3K] in ground
                 'heat_retainment': 0.60 ** (1 / 8760),  # [1/h] #  Chosen such that total losses are 40-60%
-                'max_temperature': 80,  # [deg C]
+                'water_temperature': 80,  # [deg C]
                 'min_temperature': 25,  # [deg C]
-                'charge_threshold': 25,  # [deg C]
-                'discharge_threshold': 80,  # [deg C]
 
-                # heat pump parameters
+                # STES heat pump parameters
                 'hp_investment_cost': annualize_cost(400, lifetime=20),  # [EUR/kW of Qw]
                 'hp_cop': 3,
                 'hp_max_qw_possible': 300,  # [kW]  should be set higher if used by more than 100 houses
@@ -281,9 +277,6 @@ class ModelBuilder:
             'max_grid_import': 3 * 63 * 230 / 1000,  # [kWh/h]
             'max_grid_export': 3 * 63 * 230 / 1000  # [kWh/h]
             }
-
-    def _get_local_market_params(self):
-        return {'export_eta': 0.995}
 
     def _get_tariff_and_tax_params(self):
 
@@ -347,7 +340,6 @@ class ModelBuilder:
         # Configuration
         m.enable_house_hp = bool(self.enable_house_hp)
         m.enable_stes = bool(self.enable_stes)
-        m.enable_local_market = bool(self.enable_local_market)
         m.use_future_prices = bool(self.use_future_prices)
 
         return m
@@ -364,7 +356,6 @@ class ModelBuilder:
         set_demand_params(m, self.load_params)
         set_pv_params(m, self.pv_params)
         set_power_market_params(m, self.power_market_params)
-        set_local_market_params(m, self.local_market_params)
         set_stes_params(m, self.stes_params)
         set_house_hp_params(m, self.house_hp_params)
         set_tariff_and_tax_params(m, self.tariff_and_tax_params)
@@ -384,13 +375,12 @@ class ModelBuilder:
         return m
 
 
-def lec_scenario(directory, *, num_houses, enable_house_hp, enable_stes, enable_local_market, enable_export_tariff, use_future_prices):
+def lec_scenario(directory, *, num_houses, enable_house_hp, enable_stes, enable_export_tariff, use_future_prices):
     global lec_model, builder
 
     builder = ModelBuilder(num_houses=num_houses,
                            enable_house_hp=enable_house_hp,
                            enable_stes=enable_stes,
-                           enable_local_market=enable_local_market,
                            enable_export_tariff=enable_export_tariff,
                            use_future_prices=use_future_prices)
 
@@ -424,7 +414,6 @@ def main():
     else:
         raise ValueError(f"Unknown investment config: {investments}")
 
-    enable_local_market = False
     if environment == 'now':
         enable_export_tariff = False
         use_future_prices = False
@@ -439,8 +428,8 @@ def main():
 
     print(f"Running config {config} with {num_houses} houses")
     lec_scenario(num_houses=num_houses, directory=config,
-                 enable_house_hp=enable_house_hp, enable_stes=enable_stes,
-                 enable_local_market=enable_local_market,
+                 enable_house_hp=enable_house_hp,
+                 enable_stes=enable_stes,
                  enable_export_tariff=enable_export_tariff,
                  use_future_prices=use_future_prices)
 

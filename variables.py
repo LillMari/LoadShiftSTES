@@ -42,9 +42,9 @@ def stes_vars(m):
     m.stes_el = m.model.addVars(m.t, m.h, name="stes_el")
     m.stes_th = m.model.addVars(m.t, m.h, name="stes_th")
 
-    m.hp_max_qw = m.model.addVar(name='hp_max_qw', ub=m.hp_max_qw_possible)  # [kW]
-    m.hp_qw = m.model.addVars(m.t, name="hp_qw")  # [kWh] of heat energy
-    m.hp_direct_qw = m.model.addVars(m.t, name="hp_direct_qw")  # [kWh] of heat energy
+    m.stes_hp_max_qw = m.model.addVar(name='stes_hp_max_qw', ub=m.stes_hp_max_qw_possible)  # [kW]
+    m.stes_hp_qw = m.model.addVars(m.t, name="stes_hp_qw")  # [kWh] of heat energy
+    m.stes_hp_direct_qw = m.model.addVars(m.t, name="stes_hp_direct_qw")  # [kWh] of heat energy
     m.stes_charge_qw = m.model.addVars(m.t, name="stes_charge_qw")  # [kWh] of heat energy
     m.stes_discharge_qc = m.model.addVars(m.t, name="stes_discharge_qc")  # [kWh] of heat energy
 

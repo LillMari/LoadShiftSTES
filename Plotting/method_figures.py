@@ -2,8 +2,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import pandas as pd
+from sklearn.linear_model import LinearRegression
+
 
 NOK2024_TO_EUR = 0.087
+
 
 def month_xticks(ax):
     months = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
@@ -15,18 +18,14 @@ def month_xticks(ax):
     ax.set_xticklabels(month_names)
 
 
+def energy_ylims(ax):
+    ax.set_ylim((-420, 420))
+
+
 def find_week_number(start_day, profile):
     for t in range(len(profile)):
         profile.loc[t, 'week'] = int(((t//24) + start_day) % 7)
     return profile
-
-
-def plot_weekly_el_th_demand():
-    el_demand = pd.read_csv('../Results/stes/el_demand.csv', index_col=0)
-    th_demand = pd.read_csv('../Results/stes/th_demand.csv', index_col=0)
-
-    el_demand = find_week_number(4, el_demand)
-    th_demand = find_week_number(4, th_demand)
 
 
 def plot_pv_profile(save=False):
@@ -95,10 +94,6 @@ def plot_grid_rent(save=False):
     plt.show()
 
 
-def energy_ylims(ax):
-    ax.set_ylim((-420, 420))
-
-
 def plot_el_th_profile(save=False):
     el_demand = pd.read_csv('../Results/base-now/el_demand.csv', index_col=0)
     th_demand = pd.read_csv('../Results/base-now/th_demand.csv', index_col=0)
@@ -163,15 +158,56 @@ def plot_spot_price(name):
     plt.show()
 
 
+def plot_stes_cost():
+    stes_cost_volume = {'DLSC': [542203.9, 34000],
+                        'Brædstrup': [321368.21, 19000],
+                        'Aberdeen': [491265.93, 34000],
+                        'Camborne': [491265.93, 34000],
+                        'Ontario': [320791.05, 19500],
+                        'Crailsheim': [520000, 37500],
+                        'Neckarsulm-1': [450000, 20000],
+                        'Neckarsulm-2': [749000, 63000],
+                        'Andalucia': [154826.1, 18000],
+                        }
+    # Based on simulations with very low borehole cost
+    # 'Anneberg': [165414.83, 60000]
+
+    stes_cost = pd.DataFrame.from_dict(stes_cost_volume, orient='index',
+                                       columns=['Investment cost [€]', 'Ground volume [m3]'])
+
+    lr = LinearRegression()
+    x = stes_cost['Ground volume [m3]'].values.reshape(-1, 1)
+    y = stes_cost['Investment cost [€]'].values.reshape(-1, 1)
+    lr.fit(x, y)
+
+    m = lr.coef_[0][0]  # STES capacity cost
+    b = lr.intercept_[0]  # STES investment cost
+    fig, ax = plt.subplots(figsize=(7, 4))
+    plt.grid()
+    plt.margins(x=0.01)
+    sns.regplot(stes_cost, x=f'Ground volume [m3]', y='Investment cost [€]', ax=ax)
+    ax.set_xlabel(f'Ground volume [m$^3$]')
+    ax.lines[0].set_label(f'{m:.1f}' + r'$\frac{€}{m^3}$ x +' + f'{b/1000:.0f}' + r'$\cdot 10^3 €$')
+    ax.legend(loc='upper left')
+    ax2 = ax.twiny()
+    volume_to_energy = lambda v: 20 * v
+    ax2.set_xlim(map(volume_to_energy, ax.get_xlim()))
+    ax2.set_xlabel(f"Estimated ground heat capacity [kWh]")
+    fig.tight_layout()
+    plt.savefig('method_figures/BTES_investment_cost.pdf')
+    plt.show()
+
+
 def main():
     # plot_weekly_el_th_demand()
     # plot_pv_profile(save=True)
     # plot_grid_rent(save=True)
     # plot_el_th_profile(save=True)
-    plot_CINELDI_total_load()
+    # plot_CINELDI_total_load()
     # plot_temperature_profile()
     # plot_spot_price('2019')
     # plot_spot_price('2030')
+    plot_stes_cost()
 
 
 if __name__ == '__main__':

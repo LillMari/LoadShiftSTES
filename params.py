@@ -84,34 +84,16 @@ def set_stes_params(m, stes_params):
     m.volumetric_heat_capacity = param(stes_params['volumetric_heat_capacity'])
     m.heat_retainment = param(stes_params['heat_retainment'])
 
-    m.max_stes_temperature = param(stes_params['max_temperature'])
+    m.water_stes_temperature = param(stes_params['water_temperature'])
     m.min_stes_temperature = param(stes_params['min_temperature'])
 
-    m.charge_threshold = param(stes_params['charge_threshold'])
-    m.discharge_threshold = param(stes_params['discharge_threshold'])
     m.max_temperature_increase = param(stes_params['max_temperature_increase'])
     m.max_temperature_decrease = param(stes_params['max_temperature_decrease'])
 
     m.stes_hp_investment_cost = param(stes_params['hp_investment_cost'])
     m.stes_hp_cop = param(stes_params['hp_cop'])
-    m.hp_max_qw_possible = param(stes_params['hp_max_qw_possible'])
+    m.stes_hp_max_qw_possible = param(stes_params['hp_max_qw_possible'])
 
     m.stes_charge_eta = param(stes_params['charge_eta'])
     m.stes_discharge_eta = param(stes_params['discharge_eta'])
     m.stes_discharge_cop = param(stes_params['discharge_cop'])
-
-
-def set_dso_params(m_dso, dso_params, net_use_params):
-    # Existing transmission capacity [kW]
-    m_dso.existing_transmission_capacity = param(dso_params['existing_transmission_capacity'])
-
-    # Annualized investment cost for additional grid capacity [EUR/kW/year]
-    m_dso.grid_invest_cost = param(dso_params['grid_invest_cost'])
-
-    # Transmission loss [%]
-    m_dso.transmission_loss = param(dso_params['transmission_loss'])
-
-    # Per house hourly grid import
-    m_dso.grid_el_import = param(net_use_params['grid_el_import'])
-    # Per house hourly grid export
-    m_dso.grid_export = param(net_use_params['grid_export'])

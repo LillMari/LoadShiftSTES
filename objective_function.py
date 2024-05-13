@@ -50,7 +50,7 @@ def total_lec_cost_rule(m):
     # STES investment cost (annualized)
     m.objective_terms['stes_investment_cost'] = m.stes_volume * m.stes_volume_investment_cost + m.stes_investment_cost
     # STES heat pump investment cost (annualized)
-    m.objective_terms['hp_investment_cost'] = m.hp_max_qw * m.stes_hp_investment_cost
+    m.objective_terms['stes_hp_investment_cost'] = m.stes_hp_max_qw * m.stes_hp_investment_cost
     return sum(m.objective_terms.values())
 
 

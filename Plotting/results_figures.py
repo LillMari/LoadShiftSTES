@@ -214,7 +214,7 @@ def plot_objective_terms():
     data = pd.DataFrame()
 
     grouping = {'stes_investment_cost': 'STES',
-                'hp_investment_cost': 'STES',
+                'stes_hp_investment_cost': 'STES',
                 'house_hp_investment_cost': 'House HP',
                 'pv_investment_cost': 'PV',
                 'aggregated_capacity_import_tariff': 'Grid tariff',
