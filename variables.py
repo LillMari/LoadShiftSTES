@@ -19,14 +19,6 @@ def grid_vars(m):
     m.grid_import = m.model.addVars(m.t, m.h, ub=m.max_grid_import, name="grid_import")  # [kWh/h]
     m.grid_export = m.model.addVars(m.t, m.h, ub=m.max_grid_export, name="grid_export")  # [kWh/h]
 
-    # Local market
-    if m.enable_local_market:
-        ub = float("inf")
-    else:
-        ub = 0
-    m.local_import = m.model.addVars(m.t, m.h, ub=ub, name="local_import")  # [kWh/h]
-    m.local_export = m.model.addVars(m.t, m.h, ub=ub, name="local_export")  # [kWh/h]
-
     # For each household, and each month, its highest hourly electric consumption or production
     m.peak_monthly_house_volume = m.model.addVars(m.h, m.months, name="peak_monthly_house_volume")  # [kWh/h]
 

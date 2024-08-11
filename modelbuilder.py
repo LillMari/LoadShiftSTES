@@ -4,7 +4,8 @@ Created on Thu Jan 05 2024
 
 @author: Lill Mari Engan
 """
-
+import pandas as pd
+import numpy as np
 import sys
 from types import SimpleNamespace
 
@@ -212,7 +213,7 @@ class ModelBuilder:
         return {'pv_production': PV_GEN_PROFILE,
                 # Specific investment cost based on 2020 prices [€/kWp]
                 'pv_invest_cost': pv_invest_cost,
-                # Max installed capacity is limited by available rooftop area
+                # Max installed capacity is limited by available rooftop area [kWp]
                 'max_pv_capacity': 20
                 }
 
@@ -241,12 +242,13 @@ class ModelBuilder:
                 'volumetric_heat_capacity': 0.6,  # [kWh / m3K] in ground
                 'heat_retainment': 0.60 ** (1 / 8760),  # [1/h] #  Chosen such that total losses are 40-60%
                 'water_temperature': 80,  # [deg C]
+                'max_temperature': 60,  # [deg C] (not really used to limit the STES, only to calculate charge rate)
                 'min_temperature': 25,  # [deg C]
 
                 # STES heat pump parameters
                 'hp_investment_cost': annualize_cost(400, lifetime=20),  # [EUR/kW of Qw]
                 'hp_cop': 3,
-                'hp_max_qw_possible': 300,  # [kW]  should be set higher if used by more than 100 houses
+                'hp_max_qw_possible': 500,  # [kW]  should be set higher if used by more than 100 houses
 
                 # In and out of STES parameters
                 'charge_eta': 0.99,

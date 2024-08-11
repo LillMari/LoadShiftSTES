@@ -266,11 +266,11 @@ def main():
     # print(f'Peak load: {find_peak_load_grid()}')
     # plot_net_grid_import(cases[:3], compare=False)
     # plot_net_grid_import(cases[3:], compare=True)
-    plot_heating_sources(case='stes', name='Case 3 (STES)')
-    plot_heating_sources(case='hp', name='Case 2 (HP)')
+    # plot_heating_sources(case='stes', name='Case 3 (STES)')
+    # plot_heating_sources(case='hp', name='Case 2 (HP)')
     # plot_stes_soc()
     # plot_objective_terms()
-    # print(find_total_load_community())
+    print(find_total_load_community())
 
 
 if __name__ == '__main__':

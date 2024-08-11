@@ -71,10 +71,6 @@ def write_results_to_csv(m, directory):
         series_from_data(m.stes_hp_direct_qw, "stes_hp_direct_qw", path)
         series_from_data(m.stes_hp_max_qw, "stes_hp_max_qw", path)
 
-    if m.enable_local_market:
-        dataframe_from_data(m.t, m.h,
-                            m.local_import).sum(axis=1).rename("local_import").to_csv(f'{path}/local_import.csv')
-
     dataframe_from_data(m.t, m.h, m.peak_monthly_house_volume).to_csv(f'{path}/peak_monthly_house_volume.csv')
     series_from_data(m.peak_aggregated_monthly_import_volume, 'peak_aggregated_monthly_import_volume', path)
     series_from_data(m.peak_aggregated_monthly_export_volume, 'peak_aggregated_monthly_export_volume', path)
