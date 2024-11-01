@@ -4,10 +4,9 @@ Created on Thu Jan 05 2024
 
 @author: Lill Mari Engan
 """
-import pandas as pd
-import numpy as np
 import sys
 from types import SimpleNamespace
+from ortools.linear_solver import pywraplp
 
 from params import *
 from variables import *
@@ -18,57 +17,12 @@ from solution_writer import *
 """
 Loading data
 """
-DEMAND = pd.read_csv('Lastprofiler/demand.csv')  # [kWh/h]
-ANSWERS = pd.read_csv('Lastprofiler/answers.csv')
-PV_GEN_PROFILE = pd.read_csv('PV_profiler/pv_profil_oslo_2014.csv', skiprows=3)['electricity']  # kW/kWp
-EL_TH_RATIO = pd.read_csv('PROFet/el_th_ratio.csv', index_col=0)
-SPOT_PRICES = pd.read_csv('Historic_spot_prices/spot_price_2019.csv', index_col=0)  # [EUR/MWh]
-FUTURE_SPOT_PRICES = pd.read_csv('Framtidspriser/future_spot_price.csv', index_col=0)  # [EUR/MWh]
 NOK2024_TO_EUR = 0.087
 
 
 def annualize_cost(cost, lifetime=30, interest=0.04, rounding=0):
     annuity_factor = (1 - 1 / (1 + interest) ** lifetime) / interest
     return round(cost / annuity_factor, rounding)
-
-
-def get_valid_household_ids(city):
-    """
-    :param city:
-    :return:
-    """
-
-    candidates = ANSWERS
-    candidates = candidates[candidates['Q_City'] == city]
-    candidates = candidates[candidates['Q7'].isin((2, 3))]  # Gjorde ikke strømsparingstiltak
-    candidates = candidates[candidates['Q28'].isin((1, 3))]  # Elektrisk oppvarming av tappevann
-    candidates = candidates[candidates['Q27_6'] == 0]  # Oljefyr
-    candidates = candidates[candidates['Q27_7'] == 0]  # Fjernvarme
-    candidates = candidates[candidates['Q27_5'] == 0]  # Peis
-    candidates = candidates[candidates['Q27_3'] == 0]  # Varmepumpe
-    candidates = candidates[candidates['Q22'] != 5]   # 'Annet' på type bolig
-    candidates = candidates[candidates['ID'].isin(DEMAND['ID'].unique())]
-    return candidates['ID']
-
-
-def find_el_th_ratio(id):
-    building_type_map = {1: 'House', 2: 'House', 3: 'House', 4: 'Apartment'}
-    answers = ANSWERS[ANSWERS['ID'] == id].iloc[0]
-    building = building_type_map[answers['Q22']]  # Type of building
-    el_th_ratio = EL_TH_RATIO[building]
-    return el_th_ratio
-
-
-def extract_load_profile(id):
-    load_profile = DEMAND[DEMAND['ID'] == id]
-    # Demand data contains some hours from 2020 and 2022, so cut them out
-    load_profile = load_profile[load_profile['Date'].str.contains('2021')]
-    load_profile = load_profile.reset_index(drop=True)['Demand_kWh']
-
-    el_th_ratio = find_el_th_ratio(id).reset_index(drop=True)
-    el_load = load_profile * el_th_ratio
-    th_load = load_profile * (1 - el_th_ratio)
-    return el_load, th_load
 
 
 def get_month_from_hour_map():
@@ -83,54 +37,10 @@ def get_month_from_hour_map():
     return month_from_hour
 
 
-def get_hourly_power_volume_tariff(month_from_hour, first_day_of_year=4):
-    """
-    Gives volume network tariff for each hour of the year, given the first day of the year (friday = 4)
-    Taken from https://www.elvia.no/nettleie/alt-om-nettleiepriser/nettleiepriser-for-privatkunder/
-    Includes taxes
-    """
-    # volume tariff for grid import [EUR/kWh]
-    winter_day = .3954 * NOK2024_TO_EUR
-    winter_night = .3209 * NOK2024_TO_EUR
-    summer_day = .4825 * NOK2024_TO_EUR
-    summer_night = .4075 * NOK2024_TO_EUR
-
-    hourly_power_volume_tariff = np.zeros(shape=len(month_from_hour))  # [EUR/kWh]
-    for t, month in enumerate(month_from_hour):
-        hour_in_day = t % 24
-        day_in_week = ((t//24) + first_day_of_year) % 7
-
-        is_winter = month in [0, 1, 2]              # January - March
-        is_weekday = day_in_week in range(0, 5)     # Mon - Fri
-        is_daytime = hour_in_day in range(6, 22)    # 06:00 - 22:00
-
-        if is_winter:
-            if is_weekday and is_daytime:
-                hourly_power_volume_tariff[t] = winter_day
-            else:
-                hourly_power_volume_tariff[t] = winter_night
-        else:
-            if is_weekday and is_daytime:
-                hourly_power_volume_tariff[t] = summer_day
-            else:
-                hourly_power_volume_tariff[t] = summer_night
-
-    return hourly_power_volume_tariff
-
-
-def get_volume_taxes(month_from_hour):
-    """
-    Only the tax part (Elavgift) of the volume tariff
-    Taken from https://www.elvia.no/nettleie/alt-om-nettleiepriser/nettleiepriser-for-privatkunder/
-    """
-    winter_tax = 0.0951 * NOK2024_TO_EUR
-    summer_tax = 0.1644 * NOK2024_TO_EUR
-
-    hourly_power_volume_tax = np.zeros(shape=len(month_from_hour))  # [EUR/kWh]
-    for t, month in enumerate(month_from_hour):
-        is_winter = month in [0, 1, 2]  # January - March
-        hourly_power_volume_tax[t] = (winter_tax if is_winter else summer_tax)
-    return hourly_power_volume_tax
+def get_month_to_hour_map():
+    month_from_hour = get_month_from_hour_map()
+    month_to_hour = {month: [i for i, x in enumerate(month_from_hour) if x == month] for month in range(0, 12)}
+    return month_to_hour
 
 
 def calculate_max_hourly_temperature_diff(resu, T_target, hours_available):
@@ -143,23 +53,45 @@ def calculate_max_hourly_temperature_diff(resu, T_target, hours_available):
     return (T_target - T_min)/hours_available / (1 - (T_target - T_min)/2/(T_max - T_min))
 
 
+def get_heatpump_cop_from_temperature(temperature):
+    """
+    Given the outside temperature, estimates the COP of an air source heat pump
+    TODO:  velg cop-formel
+    6.08 - 0.0941*dT + 0.000464*dT^2  (https://doi.org/10.1016/j.apenergy.2024.123647)
+    2.375 + 1.59166667 * temperature + 0.29166667 * temperature ** 2   From Plotting/heatpump_COP.py
+    """
+    # return 6.08 - 0.0941 * (T_sink - temperature) + 0.000464 * (T_sink - temperature)**2
+    if temperature > 22:
+        temperature = 22
+    elif temperature < -13:
+        temperature = -13
+    # Polynomial fit from papers
+    return 2.49917178e+00 + 6.45541257e-02 * temperature + 4.46479209e-04 * temperature ** 2
+
+
 class ModelBuilder:
-    def __init__(self, *, num_houses, enable_house_hp, enable_stes,
-                 enable_export_tariff, use_future_prices, seed=1234):
+    def __init__(self, *, country, enable_house_hp, enable_stes, seed=1234):
         self.rng = np.random.default_rng(seed=seed)
         self.hours = range(8760)
         self.months = range(12)
         self.month_from_hour = get_month_from_hour_map()
+        self.month_to_hour = get_month_to_hour_map()
+        self.available_countries = ['Norway', 'Germany', 'Spain']
+        self.country = country
 
         # Model settings
-        self.city = 4  # Oslo, in the survey
-        self.num_houses = num_houses
         self.enable_house_hp = enable_house_hp
         self.enable_stes = enable_stes
-        self.enable_export_tariff = enable_export_tariff
-        self.use_future_prices = use_future_prices
 
-        self.el_demand_profiles, self.th_demand_profiles = self._get_load_profiles()
+        # Profiles
+        self.el_demand_profiles = pd.read_csv(f'Profiles/{country}/el_demand.csv', index_col=0)
+        self.th_demand_profiles = pd.read_csv(f'Profiles/{country}/th_demand.csv', index_col=0)
+        self.pv_profile = pd.read_csv(f'Profiles/{country}/pv_profile.csv', skiprows=3)['electricity']  # kW/kWp
+        self.spot_price = pd.read_csv(f'Profiles/{country}/spot_price.csv', index_col=0) * 1e-3  # [EUR/kWh]
+        self.temperature_profile = pd.read_csv(f'Profiles/{country}/temperature_profile.csv', index_col=0)[
+            'temperature [degC]']
+
+        self.num_houses = len(self.el_demand_profiles.columns)
         self.load_params = self._get_load_params()
         self.pv_params = self._get_pv_params()
         self.stes_params = self._get_stes_params()
@@ -167,41 +99,140 @@ class ModelBuilder:
         self.power_market_params = self._get_power_market_params()
         self.tariff_and_tax_params = self._get_tariff_and_tax_params()
 
-    def _get_load_profiles(self):
-        all_ids = get_valid_household_ids(self.city)
-        ids = self.rng.choice(all_ids, size=(self.num_houses,), replace=True)
+    def _get_hourly_power_volume_tariff(self, first_day_of_year=4):
+        """
+        Gives volume network tariff for each hour of the year, given the first day of the year (friday = 4)
+        Taken from https://www.elvia.no/nettleie/alt-om-nettleiepriser/nettleiepriser-for-privatkunder/
+        Includes taxes
+        """
+        hourly_power_volume_tariff = np.zeros(shape=len(self.month_from_hour))  # [EUR/kWh]
 
-        el_load_profiles = {}
-        th_load_profiles = {}
-        for i, house_id in enumerate(ids):
-            el_load, th_load = extract_load_profile(house_id)
-            el_load_profiles[i] = el_load
-            th_load_profiles[i] = th_load
+        if self.country == 'Norway':
+            # volume tariff for grid import [EUR/kWh]
+            winter_day = .3954 * NOK2024_TO_EUR
+            winter_night = .3209 * NOK2024_TO_EUR
+            summer_day = .4825 * NOK2024_TO_EUR
+            summer_night = .4075 * NOK2024_TO_EUR
 
-        el_load_profiles_df = pd.DataFrame(el_load_profiles, index=self.hours)
-        th_load_profiles_df = pd.DataFrame(th_load_profiles, index=self.hours)
-        return el_load_profiles_df, th_load_profiles_df
+            for t, month in enumerate(self.month_from_hour):
+                hour_in_day = t % 24
+                day_in_week = ((t // 24) + first_day_of_year) % 7
+
+                is_winter = month in [0, 1, 2]  # January - March
+                is_weekday = day_in_week in range(0, 5)  # Mon - Fri
+                is_daytime = hour_in_day in range(6, 22)  # 06:00 - 22:00
+
+                if is_winter:
+                    if is_weekday and is_daytime:
+                        hourly_power_volume_tariff[t] = winter_day
+                    else:
+                        hourly_power_volume_tariff[t] = winter_night
+                else:
+                    if is_weekday and is_daytime:
+                        hourly_power_volume_tariff[t] = summer_day
+                    else:
+                        hourly_power_volume_tariff[t] = summer_night
+            volume_taxes = self._get_volume_taxes()
+            hourly_power_volume_tariff = hourly_power_volume_tariff - volume_taxes
+
+        elif self.country == 'Germany':
+            for t, month in enumerate(self.month_from_hour):
+                hourly_power_volume_tariff[t] = 0.0559  # [EUR/kWh]
+
+        elif self.country == 'Spain':
+            # volume tariff for grid import [EUR/kWh]
+            peak = 0.00135
+            flat = 0.00042
+            valley = 0.00006
+            for t, month in enumerate(self.month_from_hour):
+                hour_in_day = t % 24
+                day_in_week = ((t // 24) + first_day_of_year) % 7
+
+                is_weekend = day_in_week in range(6, 8)  # Fri - Sun
+                is_peak = (hour_in_day in range(10, 14) or hour_in_day in range(18, 22))
+                is_valley = hour_in_day in range(0, 8)
+
+                if is_weekend or is_valley:
+                    hourly_power_volume_tariff[t] = valley
+                elif is_peak:
+                    hourly_power_volume_tariff[t] = peak
+                else:
+                    hourly_power_volume_tariff[t] = flat
+
+        else:
+            raise ValueError(f'Country {self.country} not supported')
+
+        return hourly_power_volume_tariff
+
+    def _get_volume_taxes(self):
+        """
+        Only the tax part (Elavgift) of the volume tariff
+        """
+        hourly_power_volume_tax = np.zeros(shape=len(self.month_from_hour))  # [EUR/kWh]
+
+        if self.country == 'Norway':
+            # From https://www.elvia.no/nettleie/alt-om-nettleiepriser/nettleiepriser-for-privatkunder/
+            winter_tax = 0.0951 * NOK2024_TO_EUR
+            summer_tax = 0.1644 * NOK2024_TO_EUR
+
+            for t, month in enumerate(self.month_from_hour):
+                is_winter = month in [0, 1, 2]  # January - March
+                hourly_power_volume_tax[t] = (winter_tax if is_winter else summer_tax)
+
+        elif self.country == 'Germany':
+            for t, month in enumerate(self.month_from_hour):
+                hourly_power_volume_tax[t] = 0.0205  # [EUR/kWh]
+
+        elif self.country == 'Spain':
+            for t, month in enumerate(self.month_from_hour):
+                hourly_power_volume_tax[t] = 0.0511  # [per kWh]
+
+        else:
+            raise ValueError(f'Country {self.country} not supported')
+
+        return hourly_power_volume_tax
+
+    def _get_feed_in_tariff(self):
+        selling_tariff = {'Norway': self.spot_price,                                # [EUR/kWh]
+                          'Germany': pd.DataFrame([0.082] * len(self.spot_price)),  # [EUR/kWh]
+                          'Spain': (1 - 0.04) * self.spot_price}                    # [EUR/kWh]
+        return selling_tariff[self.country]
+
+    def _get_feed_in_tax(self):
+        selling_tax = {'Norway': -0.05 * NOK2024_TO_EUR,  # [EUR/kWh]
+                       'Germany': 0,
+                       'Spain': 0}
+        return selling_tax[self.country]
+
+    def _get_house_monthly_connection_base(self):
+        connection_base = {'Norway': 95.39 * NOK2024_TO_EUR, # [EUR]
+                          'Germany': 0,                      # [EUR]
+                          'Spain': 0}                        # [EUR]
+        return connection_base[self.country]
+
+    def _get_peak_individual_monthly_power_tariff(self):
+        power_tariff = {'Norway': 24.65 * NOK2024_TO_EUR,   # [EUR/kW]
+                        'Germany': 22.24,                   # [EUR/kW]
+                        'Spain': 0}                         # [EUR/kW]
+        return power_tariff[self.country]
+
+    def _get_vat(self):
+        """ Value added tax """
+        vat = {'Norway': 0.25,
+               'Germany': 0.19,
+               'Spain': 0.21}
+        return vat[self.country]
+
+    def _get_electricity_bill_lb(self):
+        """ Lower bound on monthly electricity bill """
+        el_bil_lb = {'Norway': -np.inf,
+                     'Germany': -np.inf,
+                     'Spain': 0}
+        return el_bil_lb[self.country]
 
     def _get_load_params(self):
         return {'el_demand': self.el_demand_profiles,
                 'th_demand': self.th_demand_profiles}
-
-    def _get_monthly_peak_demand_sums(self):
-        """
-        Calculates the sum of peak demand for each month in two ways.
-        The first adds up the individual peak monthly demands per house,
-        while the second aggregates all demands first, and then finds the monthly peak.
-        The first value probably higher than the second, and never lower.
-        """
-        total_demand = self.el_demand_profiles + self.th_demand_profiles
-        total_demand['lec'] = total_demand.sum(axis=1)
-        total_demand['month'] = self.month_from_hour
-        monthly_peaks = total_demand.groupby('month').max()
-
-        individual_monthly_peak_sum = monthly_peaks.iloc[:, 0:self.num_houses].sum().sum()
-        aggregated_monthly_peak_sum = monthly_peaks.loc[:, 'lec'].sum()
-
-        return individual_monthly_peak_sum, aggregated_monthly_peak_sum
 
     def _get_pv_params(self):
         """
@@ -210,18 +241,22 @@ class ModelBuilder:
         """
         pv_invest_cost = annualize_cost(7000 * NOK2024_TO_EUR)
 
-        return {'pv_production': PV_GEN_PROFILE,
+        return {'pv_production': self.pv_profile,
                 # Specific investment cost based on 2020 prices [€/kWp]
                 'pv_invest_cost': pv_invest_cost,
                 # Max installed capacity is limited by available rooftop area [kWp]
                 'max_pv_capacity': 20
                 }
 
+    def _get_cop_per_hour(self):
+        """ Calculates an estimated COP for a heat pump operating at each hour of the year """
+        return [get_heatpump_cop_from_temperature(t) for t in self.temperature_profile]
+
     def _get_house_hp_params(self):
         """
         :return:
         """
-        result = {'cop': 3,
+        result = {'cop': self._get_cop_per_hour(),  # Air temperature delivered by the heat pump
                   'max_qw': 10,  # [kWh/h]
                   'investment_cost': annualize_cost(25000/4 * NOK2024_TO_EUR, lifetime=20)}
 
@@ -234,6 +269,7 @@ class ModelBuilder:
         """
         :return:
         """
+        water_temp = 70  # [deg C]
         resu = {'investment_cost': annualize_cost(124000),  # [EUR/year] cost of any STES
                 'volume_investment_cost': annualize_cost(10.5),  # [EUR/year/m3] cost of STES volume
                 'min_installed_volume': 1.8 * 1e4,  # [m3] ground
@@ -241,13 +277,13 @@ class ModelBuilder:
                 'ground_base_temperature': 7,  # [deg C] the temperature at which no losses occur
                 'volumetric_heat_capacity': 0.6,  # [kWh / m3K] in ground
                 'heat_retainment': 0.60 ** (1 / 8760),  # [1/h] #  Chosen such that total losses are 40-60%
-                'water_temperature': 80,  # [deg C]
+                'water_temperature': water_temp,
                 'max_temperature': 60,  # [deg C] (not really used to limit the STES, only to calculate charge rate)
                 'min_temperature': 25,  # [deg C]
 
                 # STES heat pump parameters
                 'hp_investment_cost': annualize_cost(400, lifetime=20),  # [EUR/kW of Qw]
-                'hp_cop': 3,
+                'hp_cop': self._get_cop_per_hour(),
                 'hp_max_qw_possible': 500,  # [kW]  should be set higher if used by more than 100 houses
 
                 # In and out of STES parameters
@@ -269,66 +305,47 @@ class ModelBuilder:
         return resu
 
     def _get_power_market_params(self):
-        if self.use_future_prices:
-            prices = FUTURE_SPOT_PRICES  # [EUR/MWh]
-        else:
-            prices = SPOT_PRICES  # [EUR/MWh]
-
         return {
-            'power_market_price': prices * 1e-3,  # [EUR/kWh]
+            'power_market_price': self.spot_price,  # [EUR/kWh]
             'max_grid_import': 3 * 63 * 230 / 1000,  # [kWh/h]
             'max_grid_export': 3 * 63 * 230 / 1000  # [kWh/h]
             }
 
     def _get_tariff_and_tax_params(self):
-
-        # Values based on today's tariff from Elvia, and today's Elavgift
-
         # Tax (Elavgift) per volume of power [EUR/kWh]
-        volume_tax = get_volume_taxes(self.month_from_hour)
-
+        volume_tax = self._get_volume_taxes()
+        # Value added tax
+        vat = self._get_vat()
         # Tariff paid per kW each hour of the year [EUR/kWh]
-        volume_network_tariff = get_hourly_power_volume_tariff(self.month_from_hour)
-        # The volume tariff includes taxes, so remove them to make the values separate
-        volume_network_tariff = volume_network_tariff - volume_tax
-        # Tariff paid per kW of power sold to the power market. [EUR/kW]
-        selling_volume_tariff = -0.05 * NOK2024_TO_EUR
+        volume_network_tariff = self._get_hourly_power_volume_tariff()
+        # Tariff paid per kWh of power sold to the power market. [EUR/kWh]
+        feed_in_tariff = self._get_feed_in_tariff()
+        # Tax paid per kWh of power sold to the power market. [EUR/kWh]
+        feed_in_tax  = self._get_feed_in_tax()
+        # Lower bound on monthly electricity bill
+        el_bill_lb = self._get_electricity_bill_lb()
 
         # How much is paid per household each month as a base rate [EUR]
-        house_monthly_connection_base = 95.39 * NOK2024_TO_EUR
+        house_monthly_connection_base = self._get_house_monthly_connection_base()
         # How much each house pays for its maximum volume each month [EUR/kW]
-        peak_individual_monthly_power_tariff = 24.65 * NOK2024_TO_EUR
-        # How much the neighborhood pays for its max volume each month [EUR/kW]
-        peak_aggregated_monthly_import_tariff = 0
-        peak_aggregated_monthly_export_tariff = 0
-
-        if self.enable_export_tariff:
-            # With the local market enabled, houses don't pay for their individual peaks
-            # Instead the capacity cost is based on the total volume each hour
-            # The price is scaled up such that, everything else being identical, the DSO gets the same amount
-
-            individual_peaks, aggregated_peaks = self._get_monthly_peak_demand_sums()
-            expected_capacity_cost = peak_individual_monthly_power_tariff * individual_peaks
-            peak_aggregated_monthly_import_tariff = expected_capacity_cost / aggregated_peaks
-            peak_aggregated_monthly_export_tariff = expected_capacity_cost / aggregated_peaks
-
-            print(expected_capacity_cost / aggregated_peaks)
-            # Houses no longer pay for capacity individually
-            peak_individual_monthly_power_tariff = 0
-            # The DSO no longer pays you for selling to the power market
-            selling_volume_tariff = 0.0149 * NOK2024_TO_EUR  # TODO: være med, eller ikke?
+        peak_individual_monthly_power_tariff = self._get_peak_individual_monthly_power_tariff()
 
         return {'volume_tax': volume_tax,
+                'vat': vat,
                 'volume_network_tariff': volume_network_tariff,
-                'selling_volume_tariff': selling_volume_tariff,
+                'feed_in_tariff': feed_in_tariff,
+                'feed_in_tax': feed_in_tax,
+                'el_bill_lb': el_bill_lb,
                 'house_monthly_connection_base': house_monthly_connection_base,
-                'peak_individual_monthly_power_tariff': peak_individual_monthly_power_tariff,
-                'peak_aggregated_monthly_import_tariff': peak_aggregated_monthly_import_tariff,
-                'peak_aggregated_monthly_export_tariff': peak_aggregated_monthly_export_tariff}
+                'peak_individual_monthly_power_tariff': peak_individual_monthly_power_tariff}
 
-    def create_base_model(self):
+    def create_base_model(self, solver=None):
         m = SimpleNamespace()
-        m.model = gp.Model("stes_model")
+        # m.model = gp.Model("stes_model")
+
+        if solver is None:
+            solver = pywraplp.Solver.GLOP_LINEAR_PROGRAMMING
+        m.solver = pywraplp.Solver("stes_model", solver)
 
         # Sets
         m.t = list(self.hours)
@@ -338,21 +355,21 @@ class ModelBuilder:
 
         # Useful conversions
         m.month_from_hour = list(self.month_from_hour)
+        m.month_to_hour = self.month_to_hour
 
         # Configuration
         m.enable_house_hp = bool(self.enable_house_hp)
         m.enable_stes = bool(self.enable_stes)
-        m.use_future_prices = bool(self.use_future_prices)
 
         return m
 
-    def create_lec_model(self):
+    def create_lec_model(self, solver=None):
         """
         Creates a linear model of households with energy and heating needs (parameters).
         Power grid electricity is priced as a parameter, while local market prices are variable.
         """
 
-        m = self.create_base_model()
+        m = self.create_base_model(solver=solver)
 
         # Parameters
         set_demand_params(m, self.load_params)
@@ -377,22 +394,25 @@ class ModelBuilder:
         return m
 
 
-def lec_scenario(directory, *, num_houses, enable_house_hp, enable_stes, enable_export_tariff, use_future_prices):
+def lec_scenario(directory, *, country, enable_house_hp, enable_stes, solver=None):
     global lec_model, builder
 
-    builder = ModelBuilder(num_houses=num_houses,
+    builder = ModelBuilder(country=country,
                            enable_house_hp=enable_house_hp,
-                           enable_stes=enable_stes,
-                           enable_export_tariff=enable_export_tariff,
-                           use_future_prices=use_future_prices)
+                           enable_stes=enable_stes,)
 
-    lec_model = builder.create_lec_model()
-    lec_model.model.optimize()  # Barrier method
+    lec_model = builder.create_lec_model(solver=solver)
+    # lec_model.model.optimize()  # Barrier method
+    print(f"Solving with {lec_model.solver.SolverVersion()}")
+    lec_model.solver.EnableOutput()
+    lec_model.solver.Solve()
+    print(f"Problem solved in {lec_model.solver.wall_time()//1000} seconds")
+    print(f"Problem solved in {lec_model.solver.iterations()} iterations")
 
     write_results_to_csv(lec_model, directory)
 
 
-def main():
+def main(directory):
     args = sys.argv[1:]
     if len(args) == 1:
         config = args[0]
@@ -401,9 +421,7 @@ def main():
     else:
         raise ValueError("Unexpected number of arguments")
 
-    num_houses = 100
-
-    investments, environment = config.split("-")
+    country, investments = config.split("-")
     if investments == 'base':
         enable_house_hp = False
         enable_stes = False
@@ -416,25 +434,17 @@ def main():
     else:
         raise ValueError(f"Unknown investment config: {investments}")
 
-    if environment == 'now':
-        enable_export_tariff = False
-        use_future_prices = False
-    elif environment == 'exporttariff':
-        enable_export_tariff = True
-        use_future_prices = False
-    elif environment == 'future':
-        enable_export_tariff = True
-        use_future_prices = True
-    else:
-        raise ValueError(f"Unknown environment config: {environment}")
+    countries = ['Norway', 'Germany', 'Spain']
+    if country not in countries:
+        raise ValueError(f"Unknown country config: {country}")
 
-    print(f"Running config {config} with {num_houses} houses")
-    lec_scenario(num_houses=num_houses, directory=config,
+    print(f"Running config {config}")
+    lec_scenario(country=country,
+                 directory=config + directory,
                  enable_house_hp=enable_house_hp,
                  enable_stes=enable_stes,
-                 enable_export_tariff=enable_export_tariff,
-                 use_future_prices=use_future_prices)
+                 solver=pywraplp.Solver.GUROBI_LINEAR_PROGRAMMING)
 
 
 if __name__ == "__main__":
-    main()
+    main('_test')

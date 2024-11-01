@@ -1,6 +1,7 @@
 __pycache__/
 .idea/
 **/token.txt
-Temperaturprofiler/frost_id.txt
-Temperaturprofiler/frost_results.json
+Temperatureprofiles/frost_id.txt
+Temperatureprofiles/frost_results.json
 venv/
+Loadprofiles/Spain/imp_csv

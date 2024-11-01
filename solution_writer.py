@@ -12,6 +12,8 @@ def evaluate(data):
         return data.getValue()
     elif isinstance(data, gurobipy.Var):
         return data.X
+    if getattr(data, "solution_value", None):
+        return data.solution_value()
     return data
 
 
@@ -20,12 +22,12 @@ def series_from_data(data, name, folder=None):
     if isinstance(data, gp.tupledict):
         s = pd.Series(index=data.keys(), data=(evaluate(x) for x in data.values()), name=name)
     elif isinstance(data, np.ndarray) or isinstance(data, list):
-        s = pd.Series(data=data, name=name)
+        s = pd.Series(data=(evaluate(x) for x in data), name=name)
     else:
         if not isinstance(data, dict):
             # Assume the value is a single scalar we want to write to a file
             data = {None: data}
-        s = pd.Series(data=data, name=name)
+        s = pd.Series(index=data.keys(), data=(evaluate(x) for x in data.values()), name=name)
 
     if folder is not None:
         s.to_csv(f'{folder}/{name}.csv', index=len(s) > 1)
@@ -62,9 +64,8 @@ def write_results_to_csv(m, directory):
         stes_volume = series_from_data(m.stes_volume, 'stes_volume', path)
         stes_soc = series_from_data(m.stes_soc, 'stes_soc', path)
         # TODO: Replace
-        stes_temperature = stes_soc / stes_volume[0] / m.volumetric_heat_capacity + m.ground_base_temperature
+        stes_temperature = stes_soc / stes_volume.iloc[0] / m.volumetric_heat_capacity + m.ground_base_temperature
         stes_temperature.rename("stes_temperature").to_csv(f'{path}/stes_temperature.csv')
-
 
         series_from_data(m.stes_charge_qw, "stes_charge_qw", path)
         series_from_data(m.stes_discharge_qc, "stes_discharge_qc", path)
@@ -72,8 +73,7 @@ def write_results_to_csv(m, directory):
         series_from_data(m.stes_hp_max_qw, "stes_hp_max_qw", path)
 
     dataframe_from_data(m.t, m.h, m.peak_monthly_house_volume).to_csv(f'{path}/peak_monthly_house_volume.csv')
-    series_from_data(m.peak_aggregated_monthly_import_volume, 'peak_aggregated_monthly_import_volume', path)
-    series_from_data(m.peak_aggregated_monthly_export_volume, 'peak_aggregated_monthly_export_volume', path)
+    dataframe_from_data(m.t, m.h, m.monthly_electricity_bill).to_csv(f'{path}/monthly_electricity_bill.csv')
 
     th_demand = dataframe_from_data(m.t, m.h, m.th_demand).sum(axis=1)
     th_demand.rename("th_demand").to_csv(f'{path}/th_demand.csv')

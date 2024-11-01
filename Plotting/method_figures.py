@@ -29,7 +29,7 @@ def find_week_number(start_day, profile):
 
 
 def plot_pv_profile(save=False):
-    pv_profile = pd.read_csv('../PV_profiler/pv_profil_oslo_2014.csv', skiprows=3)['electricity']  # kW/kWp
+    pv_profile = pd.read_csv('../Profiles/Norway/pv_profile.csv', skiprows=3)['electricity']  # kW/kWp
     pv_profile = pv_profile * 10  # 10 kW_p system
 
     plt.figure(figsize=(6, 3))
@@ -56,7 +56,7 @@ def plot_pv_profile(save=False):
 
 
 def plot_temperature_profile():
-    temp_profile = pd.read_csv('../Temperaturprofiler/temperatur_blindern2021.csv')['temperature [degC]']
+    temp_profile = pd.read_csv('../Profiles/Norway/temperature_profile.csv')['temperature [degC]']
     plt.figure(figsize=(7, 3))
     plt.plot(temp_profile)
     month_xticks(plt.gca())

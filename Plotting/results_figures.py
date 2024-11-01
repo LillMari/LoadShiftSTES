@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib import ticker
 import pandas as pd
 import seaborn as sns
+import datetime
 
 no_lec = {'name': 'no_lec', 'color': 'silver', 'alpha': 1}
 
@@ -14,6 +15,17 @@ cases = [
     {'name': 'hp-future', 'legend': '2030 HP', 'color': 'green', 'alpha': 1, 'linestyle': '--'},
     {'name': 'stes-future', 'legend': '2030 STES', 'color': 'tomato', 'alpha': 1, 'linestyle': '-'},
 ]
+
+new_cases = [
+    {'name': 'base-now-Norway', 'legend': 'Base', 'color': 'royalblue', 'alpha': 1, 'linestyle': ':'},
+    {'name': 'hp-now-Norway', 'legend': 'HP', 'color': 'green', 'alpha': 1, 'linestyle': '--'},
+    {'name': 'stes-now-Norway', 'legend': 'STES', 'color': 'tomato', 'alpha': 1, 'linestyle': '-'},
+    {'name': 'base-now-Germany', 'legend': 'Base', 'color': 'royalblue', 'alpha': 1, 'linestyle': ':'},
+    {'name': 'hp-now-Germany', 'legend': 'HP', 'color': 'green', 'alpha': 1, 'linestyle': '--'},
+    {'name': 'stes-now-Germany', 'legend': 'STES', 'color': 'tomato', 'alpha': 1, 'linestyle': '-'}
+]
+
+SAVE_PATH = 'preliminary_plots'
 
 
 def month_xticks(ax):
@@ -73,7 +85,7 @@ def plot_lineloss_diff(cases, compare=False):
         plt.ylabel('Additional line losses [kWh/h]')
         plt.xlabel('Month')
         plt.tight_layout()
-        plt.savefig(f'results_figures/line_loss_difference_{case["name"]}.pdf')
+        plt.savefig(f'{SAVE_PATH}/line_loss_difference_{case["name"]}.pdf')
         plt.show()
 
 
@@ -92,17 +104,15 @@ def plot_duration_curve(selected_cases, name):
         sns.lineplot(load, label=case['legend'], color=case['color'], ls=case['linestyle'], lw=2)
 
     ax = plt.gca()
-    length = (len(load)-1)
-    ax.set_xticks(np.linspace(0, 1, 11) * length)
-    ax.xaxis.set_major_formatter(ticker.PercentFormatter(xmax=length))
     plt.ylabel('Net power import [kWh/h]')
-    plt.xlabel('Percentage of year [%]')
+    plt.xlabel('Peak hours [h]')
     plt.ylim((-450, 400))
     ax = plt.gca()
     plt.margins(x=0)
     plt.tight_layout()
     plt.grid()
-    plt.savefig(f'results_figures/duration_curves_{name}.pdf')
+    plt.title(name)
+    plt.savefig(f'{SAVE_PATH}/duration_curves_{name}.pdf')
     plt.show()
 
 
@@ -116,7 +126,7 @@ def find_total_load_community():
     return total_load
 
 
-def find_total_load_grid():
+def find_total_load_grid(cases):
     load = pd.read_csv('../Results/no_lec/powerflow/total_load.csv', index_col=0)
     new_load = {}
     for case in cases:
@@ -126,7 +136,7 @@ def find_total_load_grid():
     return new_load
 
 
-def find_peak_load_grid():
+def find_peak_load_grid(cases):
     peak = pd.read_csv('../Results/no_lec/powerflow/P_max.csv', index_col=0)
     new_peak = {}
     for case in cases:
@@ -150,7 +160,7 @@ def plot_net_grid_import(selected_cases, compare=False):
             tot_import = pd.read_csv(f'../Results/{case2}/grid_import.csv', index_col=0)
             tot_export = pd.read_csv(f'../Results/{case2}/grid_export.csv', index_col=0)
             net_import = tot_import['grid_import'] - tot_export['grid_export']
-            sns.lineplot(net_import, label=case['legend'].replace('2030', '2020'), color=case['color'], alpha=0.27                         )
+            sns.lineplot(net_import, label=case['legend'].replace('2030', '2020'), color=case['color'], alpha=0.27)
         plt.grid()
         plt.legend(loc='lower right')
         plt.ylabel("Net power import [kWh/h]")
@@ -159,7 +169,7 @@ def plot_net_grid_import(selected_cases, compare=False):
         energy_ylims(plt.gca())
         plt.tight_layout()
         plt.margins(x=0)
-        plt.savefig(f'results_figures/net_grid_import_{case["name"]}.pdf')
+        plt.savefig(f'{SAVE_PATH}/net_grid_import_{case["name"]}.pdf')
         plt.show()
 
 
@@ -179,7 +189,7 @@ def plot_heating_sources(case, name):
         ax.set_xticks([0] + list(range(4, 51, 5)) + [51])
         plt.legend(title=f'{year} {name}')
         plt.tight_layout()
-        plt.savefig(f'results_figures/heating_sources_{case}-{scenario}.pdf')
+        plt.savefig(f'{SAVE_PATH}/heating_sources_{case}-{scenario}.pdf')
         plt.show()
 
 
@@ -206,11 +216,11 @@ def plot_stes_soc():
     ax.set_xlabel("Month")
     plt.tight_layout()
     ax.legend(loc='upper left', title='SOC case 3 (STES)')
-    plt.savefig(f'results_figures/stes_soc.pdf')
+    plt.savefig(f'{SAVE_PATH}/stes_soc.pdf')
     plt.show()
 
 
-def plot_objective_terms():
+def plot_objective_terms(cases):
     data = pd.DataFrame()
 
     grouping = {'stes_investment_cost': 'STES',
@@ -252,25 +262,59 @@ def plot_objective_terms():
     for tick in ax.get_xticklabels():
         tick.set_rotation(0)
     fig.tight_layout()
-    plt.savefig('results_figures/cost_terms.pdf')
+    plt.savefig(f'{SAVE_PATH}/cost_terms.pdf')
     plt.show()
+
+
+def plot_peak_duration(cases, name):
+    plt.figure(figsize=(7, 3))
+    plt.hlines(y=0, xmin=0, xmax=100, colors='gray')
+
+    peak_hours_df = pd.read_csv(f'../Profiles/{name}/peak_hours.csv', index_col=0)
+    peak_hours_df['DateUTC'] = pd.to_datetime(peak_hours_df['DateUTC'], dayfirst=True)
+    peak_hours = [(time.dayofyear - 1) * 24 + time.hour for time in peak_hours_df['DateUTC']]
+
+    for case in cases:
+        load_imp = pd.read_csv(f'../Results/{case["name"]}/grid_import.csv', index_col=0)
+        load_exp = pd.read_csv(f'../Results/{case["name"]}/grid_export.csv', index_col=0)
+        load = load_imp['grid_import'] - load_exp['grid_export']
+        load = load.iloc[peak_hours]
+        load = load.sort_values(ascending=False, ignore_index=True)
+        sns.lineplot(load, label=case['legend'], color=case['color'], ls=case['linestyle'], lw=2)
+
+    ax = plt.gca()
+    plt.ylabel('Net power import [kWh/h]')
+    plt.xlabel('Hours [h]')
+    plt.ylim((0, 400))
+    ax = plt.gca()
+    plt.margins(x=0)
+    plt.tight_layout()
+    plt.grid()
+    plt.title(name)
+    plt.savefig(f'{SAVE_PATH}/peak_duration_curves_{name}.pdf')
+    plt.show()
+
+
 
 
 def main():
     # plot_linelosses()
     # plot_lineloss_diff(cases[:3], compare=False)
     # plot_lineloss_diff(cases[3:], compare=True)
-    # plot_duration_curve(cases[:3], name='now')
-    # plot_duration_curve(cases[3:], name='future')
-    # print(f'Total load: {find_total_load_grid()}')
-    # print(f'Peak load: {find_peak_load_grid()}')
+    # plot_duration_curve(new_cases[:3], name='Norway')
+    # plot_duration_curve(new_cases[3:], name='Germany')
+    # print(f'Total load: {find_total_load_grid(new_cases)}')
+    # print(f'Peak load: {find_peak_load_grid(new_cases)}')
     # plot_net_grid_import(cases[:3], compare=False)
     # plot_net_grid_import(cases[3:], compare=True)
+    plot_net_grid_import(new_cases, compare=False)
     # plot_heating_sources(case='stes', name='Case 3 (STES)')
     # plot_heating_sources(case='hp', name='Case 2 (HP)')
     # plot_stes_soc()
-    # plot_objective_terms()
-    print(find_total_load_community())
+    # plot_objective_terms(new_cases)
+    # print(find_total_load_community())
+    plot_peak_duration(cases[:3], name='Norway')
+    plot_peak_duration(cases[3:], name='Germany')
 
 
 if __name__ == '__main__':

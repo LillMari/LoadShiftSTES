@@ -46,23 +46,26 @@ def set_tariff_and_tax_params(m, tariff_and_tax_params):
     # Taxes (Elavgift) paid per unit of energy [EUR/kWh]
     m.tax = param(tariff_and_tax_params['volume_tax'])
 
+    # Value added tax per unit of energy [per kWh]
+    m.vat = param(tariff_and_tax_params['vat'])
+
     # Tariff volume cost per kWh, excluding taxes, indexed by hour [EUR/kWh]
     m.volume_network_tariff = param(tariff_and_tax_params['volume_network_tariff'])
 
     # Tariff volume cost of selling to the power market. Can be negative if selling is incentivized [EUR/kWh]
-    m.selling_volume_tariff = param(tariff_and_tax_params['selling_volume_tariff'])
+    m.feed_in_tariff = param(tariff_and_tax_params['feed_in_tariff'])
+
+    # Feed-in-Tariff for surplus PV [EUR/kWh]
+    m.feed_in_tax = param(tariff_and_tax_params['feed_in_tax'])
+
+    # Lower bound on monthly electricity bill
+    m.el_bill_lb = param(tariff_and_tax_params['el_bill_lb'])
 
     # What each house pays monthly [EUR]
     m.house_monthly_connection_base = param(tariff_and_tax_params['house_monthly_connection_base'])
 
     # capacity tariff, based on individual peak each month [EUR/kW]
     m.peak_individual_monthly_power_tariff = param(tariff_and_tax_params['peak_individual_monthly_power_tariff'])
-
-    # shared capacity tariff, based on aggregated peak each month [EUR/kW]
-    m.peak_aggregated_monthly_import_tariff = param(tariff_and_tax_params['peak_aggregated_monthly_import_tariff'])
-
-    # shared capacity export tariff, based on aggregated peak each year [EUR/kW]
-    m.peak_aggregated_monthly_export_tariff = param(tariff_and_tax_params['peak_aggregated_monthly_export_tariff'])
 
 
 def set_house_hp_params(m, house_hp_params):

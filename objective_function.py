@@ -13,8 +13,7 @@ def total_lec_cost_rule(m):
     m.objective_terms = {}
 
     # Power market cost (spot price)
-    m.objective_terms['power_market_cost'] = sum(m.power_market_price[t] * (m.grid_import[t, h] - m.grid_export[t, h])
-                                                 for t in m.t for h in m.h)
+    m.objective_terms['power_market_cost'] = sum(m.monthly_electricity_bill[h, month] for h in m.h for month in m.months)
 
     # Electricity tax cost
     m.objective_terms['volume_tax_cost'] = sum(m.tax[t] * m.grid_import[t, h] for t in m.t for h in m.h)
@@ -23,7 +22,7 @@ def total_lec_cost_rule(m):
     grid_volume_import_tariff = sum(m.grid_import[t, h] * m.volume_network_tariff[t] for t in m.t for h in m.h)
 
     # Volumetric grid tariff on power market export
-    grid_volume_export_tariff = sum(m.grid_export[t, h] * m.selling_volume_tariff for t in m.t for h in m.h)
+    grid_volume_export_tariff = sum(m.grid_export[t, h] * m.feed_in_tax for t in m.t for h in m.h)
     #
     m.objective_terms['grid_volume_tariff'] = grid_volume_import_tariff + grid_volume_export_tariff
 
@@ -35,12 +34,6 @@ def total_lec_cost_rule(m):
         sum(m.peak_monthly_house_volume[h, month] for h in m.h for month in m.months) \
         * m.peak_individual_monthly_power_tariff
 
-    # Monthly aggregated capacity export tariff
-    m.objective_terms['aggregated_capacity_export_tariff'] = \
-        sum(m.peak_aggregated_monthly_export_volume[mon] for mon in m.months) * m.peak_aggregated_monthly_export_tariff
-    m.objective_terms['aggregated_capacity_import_tariff'] = \
-        sum(m.peak_aggregated_monthly_import_volume[mon] for mon in m.months) * m.peak_aggregated_monthly_import_tariff
-
     # PV investment cost (annualized)
     m.objective_terms['pv_investment_cost'] = m.pv_invest_cost * sum(m.pv_installed_capacity[h] for h in m.h)
 
@@ -51,8 +44,10 @@ def total_lec_cost_rule(m):
     m.objective_terms['stes_investment_cost'] = m.stes_volume * m.stes_volume_investment_cost + m.stes_investment_cost
     # STES heat pump investment cost (annualized)
     m.objective_terms['stes_hp_investment_cost'] = m.stes_hp_max_qw * m.stes_hp_investment_cost
+
     return sum(m.objective_terms.values())
 
 
 def total_cost_objective_function(m):
-    m.lec_objective = m.model.setObjective(total_lec_cost_rule(m), GRB.MINIMIZE)
+    # m.lec_objective = m.model.setObjective(total_lec_cost_rule(m), GRB.MINIMIZE)
+    m.solver.Minimize(total_lec_cost_rule(m))

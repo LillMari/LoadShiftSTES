@@ -4,7 +4,7 @@ from requests_oauthlib import OAuth2Session
 from oauthlib.oauth2 import BackendApplicationClient
 import pandas as pd
 
-TEMPERATURE = pd.read_csv('../Temperaturprofiler/temperatur_blindern2021.csv')['temperature [degC]'].to_list()
+TEMPERATURE = pd.read_csv('../Profiles/Norway/temperature_profile.csv')['temperature [degC]'].to_list()
 
 
 def get_token(filename):

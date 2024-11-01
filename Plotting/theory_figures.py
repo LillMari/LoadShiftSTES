@@ -138,7 +138,7 @@ def plot_production_and_load_profile():
     total_load = load_profiles_statnett['Consumption'] / 1e6
     total_daily_load = total_load.groupby(total_load.index // grouping + 1).sum()
 
-    pv_profile = pd.read_csv('../PV_profiler/pv_profil_oslo_2014.csv', skiprows=3)['electricity']  # kW/kWp
+    pv_profile = pd.read_csv('../Profiles/Norway/pv_profile.csv', skiprows=3)['electricity']  # kW/kWp
     pv_profile = pv_profile * 10  # 10 kW_p system
     total_daily_pv = pv_profile.groupby(pv_profile.index // grouping + 1).sum()
 

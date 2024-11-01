@@ -1,9 +1,9 @@
-python modelbuilder.py base-now
-python modelbuilder.py hp-now
-python modelbuilder.py stes-now
-# python modelbuilder.py base-exporttariff
-# python modelbuilder.py hp-exporttariff
-# python modelbuilder.py stes-exporttariff
-python modelbuilder.py base-future
-python modelbuilder.py hp-future
-python modelbuilder.py stes-future
+python modelbuilder.py Norway-base
+python modelbuilder.py Norway-hp
+python modelbuilder.py Norway-stes
+python modelbuilder.py Germany-base
+python modelbuilder.py Germany-hp
+python modelbuilder.py Germany-stes
+python modelbuilder.py Spain-base
+python modelbuilder.py Spain-hp
+python modelbuilder.py Spain-stes
